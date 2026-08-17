@@ -84,7 +84,7 @@ func init() {
 
 // ClockSkew defines the maximum tolerable difference between the two peers
 // of a GSS-API context, and defaults to 10 seconds.  Increase this number if
-// there is poor syncronisation between client and server nodes.  Decrease
+// there is poor synchronisation between client and server nodes.  Decrease
 // the value to enhance security where there is good synchronisation.
 var ClockSkew = time.Second * 10
 
@@ -180,7 +180,7 @@ func (m Krb5Mech) IsEstablished() bool {
 // ContextFlags returns the subset of requested context flags that are available
 // and may change during establishmane of the context.  The Initiator and
 // Acceptor should examine the flags before using the context for message
-// exchange, to verify that the state of the context matches the appliation
+// exchange, to verify that the state of the context matches the application
 // security requirements.
 func (m Krb5Mech) ContextFlags() (f gssapi.ContextFlag) {
 	return m.sessionFlags
@@ -303,7 +303,7 @@ func (m *Krb5Mech) Initiate(serviceName string, requestFlags gssapi.ContextFlag,
 	m.sessionFlags = gssapi.ContextFlagConf | gssapi.ContextFlagInteg |
 		gssapi.ContextFlagReplay | gssapi.ContextFlagSequence
 
-	// requuest flags is the subset that we support of the requested flags, used in the context
+	// request flags is the subset that we support of the requested flags, used in the context
 	// negotiation.  The set we will tell the caller that we actually support is the above,
 	// sessionFlags which may include more than the requested set
 	m.requestFlags = requestFlags & (gssapi.ContextFlagConf | gssapi.ContextFlagInteg |
@@ -444,7 +444,7 @@ func (m *Krb5Mech) continueAcceptor(tokenIn []byte) (tokenOut []byte, err error)
 	}
 
 	// RFC says: must return a KRBError message to the client if the token ID was invalid
-	// Note sure other implementatios really do this
+	// Not sure other implementations really do this
 	if gssInToken.kRBError == nil && gssInToken.aPReq == nil && gssInToken.aPRep == nil {
 		tokenOut, err = mkGssErrKrbCode(ianaerrcode.KRB_AP_ERR_MSG_TYPE, "gss accept failed")
 		return

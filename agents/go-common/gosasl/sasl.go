@@ -24,7 +24,7 @@ const DEFAULT_MAX_LENGTH = 16384000
 // AUTH if the flag used for just basic auth, no confidentiality
 var AUTH = "auth"
 
-// AUTH_INT is the flag for authentication and integrety
+// AUTH_INT is the flag for authentication and integrity
 var AUTH_INT = "auth-int"
 
 // AUTH_CONF is the flag for authentication and confidentiality. It
@@ -32,7 +32,7 @@ var AUTH_INT = "auth-int"
 var AUTH_CONF = "auth-conf"
 
 // QOP_TO_FLAG is a dict that translate the string flag name into the actual bit
-// It can be used wiht gssapiMechanism.UserSelectQop = QOP_TO_FLAG[AUTH_CONF] | QOP_TO_FLAG[AUTH_INT]
+// It can be used with gssapiMechanism.UserSelectQop = QOP_TO_FLAG[AUTH_CONF] | QOP_TO_FLAG[AUTH_INT]
 var QOP_TO_FLAG = map[string]byte{
 	AUTH:      1,
 	AUTH_INT:  2,
