@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const workflow = readFileSync(new URL("../workflows/ci.yml", import.meta.url), "utf8");
+const releaseWorkflow = readFileSync(new URL("../workflows/release.yml", import.meta.url), "utf8");
+const win7LoaderScript = readFileSync(new URL("prepare-webview2-win7-loader.ps1", import.meta.url), "utf8");
 function job(name) {
   const jobs = workflow.slice(workflow.indexOf("\njobs:\n") + 7);
   const pattern = /^  ([\w-]+):\s*$/gm;
@@ -14,16 +16,19 @@ function job(name) {
 
 test("fast checks run format and contracts before graph resolution or compilation", () => {
   const fast = job("fast-checks");
-  for (const command of ["cargo fmt --check", "node --test scripts/core-architecture.test.mjs",
-    "node scripts/sync-connection-types.mjs --check", "node .github/scripts/ci-lockfiles.mjs", "node .github/scripts/ci-rust-coverage.mjs"]) assert.ok(fast.includes(command));
+  for (const command of ["cargo fmt --check", "node --test scripts/core-architecture.test.mjs", "node scripts/sync-connection-types.mjs --check", "node .github/scripts/ci-lockfiles.mjs", "node .github/scripts/ci-rust-coverage.mjs"]) assert.ok(fast.includes(command));
   assert.ok(fast.indexOf("cargo fmt --check") < fast.indexOf("ci-lockfiles.mjs"));
   assert.doesNotMatch(fast, /cargo (?:test|build|clippy)/);
   assert.ok(fast.includes("needs.changes.outputs.rust_groups_known == 'true'"));
 });
 
 test("Agent and Rust matrices are bounded and do not cancel sibling failures", () => {
-  for (const [name, output, parallel] of [["rust-test", "rust_matrix", 3], ["agent-rust", "agent_rust", 2],
-    ["agent-go", "agent_go", 8], ["agent-integration", "agent_integration", 8]]) {
+  for (const [name, output, parallel] of [
+    ["rust-test", "rust_matrix", 3],
+    ["agent-rust", "agent_rust", 2],
+    ["agent-go", "agent_go", 8],
+    ["agent-integration", "agent_integration", 8],
+  ]) {
     const content = job(name);
     assert.match(content, /fail-fast: false/);
     assert.ok(content.includes(`max-parallel: ${parallel}`));
@@ -34,10 +39,12 @@ test("Agent and Rust matrices are bounded and do not cancel sibling failures", (
 });
 
 test("stable Rust, Agent and overall gates always inspect selected upstream results", () => {
-  for (const [name, mode, dependencies] of [["rust", "rust", ["fast-checks", "rust-fmt-clippy", "rust-test"]],
+  for (const [name, mode, dependencies] of [
+    ["rust", "rust", ["fast-checks", "rust-fmt-clippy", "rust-test"]],
     ["agents", "agents", ["fast-checks", "agent-checks", "agent-rust", "agent-go", "agent-integration", "agent-java"]],
     ["frontend", "frontend", ["frontend-checks", "frontend-typecheck", "frontend-test"]],
-    ["ci", "all", ["rust", "agents", "frontend", "packages", "windows-standard-check", "windows-win7-bundle", "duckdb-windows-driver", "nix-packaging"]]]) {
+    ["ci", "all", ["rust", "agents", "frontend", "packages", "windows-standard-check", "windows-win7-bundle", "duckdb-windows-driver", "nix-packaging"]],
+  ]) {
     const content = job(name);
     assert.match(content, /if: always\(\)/);
     assert.ok(content.includes(`node .github/scripts/ci-gate.mjs ${mode}`));
@@ -74,7 +81,7 @@ test("every old Agent stage has an independent owner and Java packaging remains 
 
 test("native Rust driver caches exclude failed build artifacts", () => {
   const content = job("agent-rust");
-  assert.ok(content.includes('shared-key: ci-agent-rust-v2-${{ matrix.driver }}'));
+  assert.ok(content.includes("shared-key: ci-agent-rust-v2-${{ matrix.driver }}"));
   assert.ok(content.includes("cache-on-failure: false"));
 });
 
@@ -88,7 +95,7 @@ test("DuckDB Windows builds persist Rust and C++ compiler results", () => {
   assert.ok(content.includes('version: "v0.16.0"'));
 });
 
-test("standard Windows compatibility checks run separately with sccache", () => {
+test("Windows compatibility checks run separately with isolated sccache namespaces", () => {
   const standard = job("windows-standard-check");
   assert.ok(standard.includes("needs.changes.outputs.windows_win7_bundle == 'true'"));
   assert.ok(standard.includes("RUSTC_WRAPPER: sccache"));
@@ -100,7 +107,28 @@ test("standard Windows compatibility checks run separately with sccache", () => 
   assert.ok(standard.includes("sccache --show-stats"));
 
   const win7 = job("windows-win7-bundle");
-  assert.doesNotMatch(win7, /x86_64-pc-windows-msvc|Setup Rust for standard Windows|RUSTC_WRAPPER: sccache/);
+  assert.doesNotMatch(win7, /x86_64-pc-windows-msvc|Setup Rust for standard Windows/);
+  assert.ok(win7.includes("RUSTC_WRAPPER: sccache"));
+  assert.ok(win7.includes("SCCACHE_GHA_VERSION: windows-win7-webview2-1.0.902.49-v1"));
+  assert.ok(win7.includes("fc920bf0ec8de6ee65d409111f7ec508035751ba"));
+  assert.ok(win7.includes('version: "v0.16.0"'));
+  assert.ok(win7.includes("sccache --show-stats"));
+});
+
+test("Win7 builds use a checked repo-local WebView2 crate", () => {
+  assert.ok(win7LoaderScript.includes("381336cfffd772377d291702245447a5251a2ffa5bad679c99e61bc48bacbf9c"));
+  assert.ok(win7LoaderScript.includes("https://static.crates.io/crates/webview2-com-sys/"));
+  assert.ok(win7LoaderScript.includes("target/ci-inputs/webview2-com-sys-$webView2ComSysVersion-win7"));
+  assert.ok(win7LoaderScript.includes("[patch.crates-io]"));
+  assert.ok(win7LoaderScript.includes("DBX_WIN7_WEBVIEW2_PATCH_START"));
+  assert.ok(win7LoaderScript.includes('cargo update --package "webview2-com-sys@$webView2ComSysVersion"'));
+  assert.ok(win7LoaderScript.includes("cargo metadata --locked"));
+  assert.doesNotMatch(win7LoaderScript, /cargo fetch|\.cargo[\\/]registry/);
+
+  for (const content of [job("windows-win7-bundle"), releaseWorkflow]) {
+    assert.ok(content.includes("SCCACHE_GHA_VERSION: windows-win7-webview2-1.0.902.49-v1"));
+    assert.ok(content.includes("prepare-webview2-win7-loader.ps1"));
+  }
 });
 
 test("the planner uses the exact event base and preserves a single workflow cancellation scope", () => {

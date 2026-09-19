@@ -564,15 +564,14 @@ jobs:
     needs: release-ready
     runs-on: windows-2022
     environment: release-signing
-    # No sccache here: the loader patch rewrites a file inside the cargo
-    # registry, which is invisible to any compile cache. v0.6.0 shipped a
-    # binary linked against the wrong (>= 1.0.1054.31) WebView2 loader even
-    # though the patched 1.0.902.49 loader was verified on disk, so caching is
-    # disabled for this target until the patch is vendored into the source
-    # tree.
+    # The loader script creates a checked repo-local crate. The cache namespace
+    # identifies the loader version. Keep both values in sync.
     env:
       CARGO_INCREMENTAL: "0"
       RUSTFLAGS: -C debuginfo=line-tables-only -C target-feature=+crt-static
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_GHA_VERSION: windows-win7-webview2-1.0.902.49-v1
       VSIGN_CERT_HASH: ${{ vars.VSIGN_CERT_HASH }}
       VSIGN_OPERATOR_SHA1: ${{ vars.VSIGN_OPERATOR_SHA1 }}
       VSIGN_SERVER: ${{ vars.VSIGN_SERVER }}
@@ -600,6 +599,10 @@ jobs:
       - name: Prepare Win7-compatible WebView2 loader
         shell: pwsh
         run: ./.github/scripts/prepare-webview2-win7-loader.ps1
+
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+        with:
+          version: "v0.16.0"
 
       - name: Prepare WebView2 109 fixed runtime
         shell: pwsh
@@ -694,6 +697,11 @@ jobs:
           if (Test-Path -LiteralPath $workDir) {
             Remove-Item -LiteralPath $workDir -Recurse -Force
           }
+
+      - name: Show sccache stats
+        if: always()
+        continue-on-error: true
+        run: sccache --show-stats
 
   static-browser:
     # Fully static musl builds of the browser (dbx-web) variant. No glibc

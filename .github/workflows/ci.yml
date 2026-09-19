@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -306,6 +306,9 @@ jobs:
     env:
       CARGO_INCREMENTAL: "0"
       RUSTFLAGS: -C debuginfo=line-tables-only -C target-feature=+crt-static
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_GHA_VERSION: windows-win7-webview2-1.0.902.49-v1
     steps:
       - uses: actions/checkout@v5
 
@@ -332,6 +335,10 @@ jobs:
       - name: Prepare Win7-compatible WebView2 loader
         shell: pwsh
         run: ./.github/scripts/prepare-webview2-win7-loader.ps1
+
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+        with:
+          version: "v0.16.0"
 
       - name: Prepare WebView2 109 fixed runtime
         shell: pwsh
@@ -387,6 +394,11 @@ jobs:
           path: target/x86_64-win7-windows-msvc/release/bundle/nsis/*.exe
           if-no-files-found: error
           retention-days: 7
+
+      - name: Show sccache stats
+        if: always()
+        continue-on-error: true
+        run: sccache --show-stats
 
   duckdb-windows-driver:
     needs: changes
