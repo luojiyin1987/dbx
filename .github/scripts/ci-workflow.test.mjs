@@ -88,6 +88,23 @@ test("DuckDB Windows builds persist Rust and C++ compiler results", () => {
   assert.ok(content.includes('version: "v0.16.0"'));
 });
 
+test("the Win7 loader is a vendored source input, not a registry patch", () => {
+  const manifest = readFileSync(new URL("../../Cargo.toml", import.meta.url), "utf8");
+  assert.ok(manifest.includes('webview2-com-sys = { path = "vendor/webview2-com-sys" }'));
+  assert.ok(manifest.includes('"vendor/webview2-com-sys"'));
+
+  const changes = job("changes");
+  assert.ok(changes.includes("'vendor/webview2-com-sys/**'"));
+
+  const win7 = job("windows-win7-bundle");
+  assert.ok(win7.includes("RUSTC_WRAPPER: sccache"));
+  assert.ok(win7.includes("SCCACHE_GHA_VERSION: win7-webview2-1.0.902.49-v1"));
+
+  const release = readFileSync(new URL("../workflows/release.yml", import.meta.url), "utf8");
+  assert.ok(release.includes("SCCACHE_GHA_VERSION: win7-webview2-1.0.902.49-v1"));
+  assert.ok(release.includes("fc920bf0ec8de6ee65d409111f7ec508035751ba"));
+  assert.ok(release.includes("0b201ec74fa43914dc39ae48a89fd1d8cb592756"));
+});
 test("the planner uses the exact event base and preserves a single workflow cancellation scope", () => {
   const changes = job("changes");
   assert.ok(changes.includes("github.event.pull_request.base.sha || github.event.before"));
