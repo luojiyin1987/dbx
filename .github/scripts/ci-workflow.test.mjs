@@ -89,6 +89,7 @@ test("DuckDB Windows builds persist Rust and C++ compiler results", () => {
 });
 
 test("standard Windows compatibility checks run separately with sccache", () => {
+  assert.ok(job("changes").includes("'vendor/webview2-com-sys/**'"));
   const standard = job("windows-standard-check");
   assert.ok(standard.includes("needs.changes.outputs.windows_win7_bundle == 'true'"));
   assert.ok(standard.includes("RUSTC_WRAPPER: sccache"));

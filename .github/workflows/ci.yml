@@ -854,6 +854,7 @@ jobs:
               - 'vendor/ctor/**'
               - 'vendor/dirs-sys/**'
               - 'vendor/pageant/**'
+              - 'vendor/webview2-com-sys/**'
               - 'vendor/wry/**'
             github_scripts:
               - '.github/scripts/**'
