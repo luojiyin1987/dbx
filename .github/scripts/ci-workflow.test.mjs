@@ -51,6 +51,7 @@ test("frontend tests use two shards on separate runners", () => {
   assert.match(content, /fail-fast: false/);
   assert.match(content, /shard: \[1, 2\]/);
   assert.ok(content.includes("--shard=${{ matrix.shard }}/2"));
+  assert.ok(content.includes("--reporter=github-actions"));
   assert.ok(content.includes("ci-vitest-file-timing-reporter.mjs"));
   assert.doesNotMatch(job("frontend-typecheck"), /vitest|oxfmt|oxlint/);
 });
