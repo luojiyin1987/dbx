@@ -106,7 +106,9 @@ test("the Win7 loader is a vendored source input, not a registry patch", () => {
 
   const win7 = job("windows-win7-bundle");
   assert.ok(win7.includes("RUSTC_WRAPPER: sccache"));
-  assert.ok(win7.includes("SCCACHE_GHA_VERSION: win7-webview2-1.0.902.49-v1"));
+  assert.ok(win7.includes("SCCACHE_GHA_VERSION: win7-webview2-1.0.902.49-ci-v2"));
+  assert.ok(win7.includes('CARGO_PROFILE_RELEASE_LTO: "thin"'));
+  assert.ok(win7.includes('CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "8"'));
 
   const release = readFileSync(new URL("../workflows/release.yml", import.meta.url), "utf8");
   const releaseWin7 = workflowJob(release, "build-windows-7-offline");
@@ -116,6 +118,7 @@ test("the Win7 loader is a vendored source input, not a registry patch", () => {
   for (const content of [win7, releaseWin7]) {
     assert.doesNotMatch(content, /(?:^|\n)\s+(?:CC|CXX):\s*"sccache cl\.exe"/);
   }
+  assert.doesNotMatch(releaseWin7, /CARGO_PROFILE_RELEASE_(?:LTO|CODEGEN_UNITS)/);
 });
 
 test("standard Windows compatibility checks run separately with sccache", () => {

@@ -305,11 +305,14 @@ jobs:
     timeout-minutes: 120
     env:
       CARGO_INCREMENTAL: "0"
+      # PR checks keep release paths but use a faster LTO policy.
+      CARGO_PROFILE_RELEASE_LTO: "thin"
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "8"
       RUSTFLAGS: -C debuginfo=line-tables-only -C target-feature=+crt-static
       # The WebView2 1.0.902.49 loader is a vendored source input now, so the
       # cache key only needs the loader generation. See vendor/webview2-com-sys.
       SCCACHE_GHA_ENABLED: "true"
-      SCCACHE_GHA_VERSION: win7-webview2-1.0.902.49-v1
+      SCCACHE_GHA_VERSION: win7-webview2-1.0.902.49-ci-v2
     steps:
       - uses: actions/checkout@v5
 
