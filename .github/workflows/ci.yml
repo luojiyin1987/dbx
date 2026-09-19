@@ -405,6 +405,7 @@ jobs:
         run: |
           $env:SCCACHE_LOG = "debug"
           $env:SCCACHE_ERROR_LOG = "$env:RUNNER_TEMP\sccache-debug.log"
+          sccache --zero-stats
           $env:TAURI_CONFIG = Get-Content src-tauri/tauri.webview2-win7-fixed.conf.json -Raw
           cargo build --locked --package dbx --release --features custom-protocol --target x86_64-win7-windows-msvc -Z build-std=std,panic_abort
 
