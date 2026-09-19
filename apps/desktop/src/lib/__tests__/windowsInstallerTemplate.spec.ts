@@ -152,8 +152,9 @@ describe("Windows 7 fixed WebView2 runtime bundle", () => {
     for (const job of [releaseWin7Job, ciWin7Job]) {
       expect(job).toContain("RUSTC_WRAPPER: sccache");
       expect(job).toContain("sccache-action");
-      expect(job).toContain("SCCACHE_GHA_VERSION: win7-webview2-1.0.902.49-v1");
     }
+    expect(releaseWin7Job).toContain("SCCACHE_GHA_VERSION: win7-webview2-1.0.902.49-v1");
+    expect(ciWin7Job).toContain("SCCACHE_GHA_VERSION: win7-webview2-1.0.902.49-ci-v2");
   });
 
   it("probes the fixed runtime through the Win7-compatible loader", () => {
