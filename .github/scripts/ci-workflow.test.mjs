@@ -78,6 +78,15 @@ test("native Rust driver caches exclude failed build artifacts", () => {
   assert.ok(content.includes("cache-on-failure: false"));
 });
 
+test("DuckDB Windows builds persist Rust and C++ compiler results", () => {
+  const content = job("duckdb-windows-driver");
+  assert.ok(content.includes('SCCACHE_GHA_ENABLED: "true"'));
+  assert.ok(content.includes('CC: "sccache cl.exe"'));
+  assert.ok(content.includes('CXX: "sccache cl.exe"'));
+  assert.ok(content.includes("fc920bf0ec8de6ee65d409111f7ec508035751ba"));
+  assert.ok(content.includes('version: "v0.16.0"'));
+});
+
 test("the planner uses the exact event base and preserves a single workflow cancellation scope", () => {
   const changes = job("changes");
   assert.ok(changes.includes("github.event.pull_request.base.sha || github.event.before"));
