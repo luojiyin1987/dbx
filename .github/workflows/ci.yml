@@ -330,6 +330,9 @@ jobs:
       # cache key only needs the loader generation. See vendor/webview2-com-sys.
       SCCACHE_GHA_ENABLED: "true"
       SCCACHE_GHA_VERSION: win7-webview2-1.0.902.49-ci-v2
+      # Temporary diagnostics for the sccache 0-request investigation.
+      SCCACHE_LOG: debug
+      SCCACHE_ERROR_LOG: ${{ runner.temp }}\sccache-debug.log
     steps:
       - uses: actions/checkout@v5
 
@@ -377,11 +380,24 @@ jobs:
       - name: Build frontend
         run: pnpm build
 
-      - name: Show sccache configuration
+      # Temporary diagnostics for the sccache 0-request investigation.
+      - name: Probe rustc wrapper
         shell: pwsh
         run: |
-          sccache --version
           Write-Host "RUSTC_WRAPPER=$env:RUSTC_WRAPPER"
+          Write-Host "sccache=$((Get-Command sccache).Source)"
+          sccache --version
+          Set-Content "$env:RUNNER_TEMP\probe.rs" "fn main() {}" -Encoding ascii
+          & sccache rustc --crate-name probe --edition 2021 "$env:RUNNER_TEMP\probe.rs" -o "$env:RUNNER_TEMP\probe.exe"
+          Write-Host "manual wrapper exit=$LASTEXITCODE"
+          sccache --show-stats
+          $probe = "$env:RUNNER_TEMP\cargo-probe.log"
+          cargo build -v --locked -p dbx-types --release --target x86_64-win7-windows-msvc -Z build-std=std,panic_abort *>&1 | Out-File $probe -Encoding utf8
+          Write-Host "cargo probe exit=$LASTEXITCODE"
+          Write-Host "--- sccache mentions in cargo probe ---"
+          Select-String -Path $probe -Pattern "sccache" | Select-Object -First 3 | ForEach-Object { $_.Line }
+          Write-Host "--- first Running lines ---"
+          Select-String -Path $probe -Pattern "Running " | Select-Object -First 3 | ForEach-Object { $_.Line }
           sccache --show-stats
 
       - name: Build DBX for Windows 7
@@ -445,6 +461,20 @@ jobs:
         if: always()
         continue-on-error: true
         run: sccache --show-stats
+
+      # Temporary diagnostics for the sccache 0-request investigation.
+      - name: Show sccache debug log
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP "sccache-debug.log"
+          if (Test-Path $log) {
+            Write-Host "--- sccache debug log (last 60 lines) ---"
+            Get-Content $log -Tail 60
+          } else {
+            Write-Host "no sccache debug log at $log"
+          }
 
   duckdb-windows-driver:
     needs: changes
