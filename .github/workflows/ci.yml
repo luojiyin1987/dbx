@@ -14,7 +14,7 @@ env:
   RUSTFLAGS: -C debuginfo=line-tables-only
 
 jobs:
-  frontend:
+  frontend-checks:
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-22.04
@@ -38,8 +38,14 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm --filter dbx... install --frozen-lockfile
 
-      - name: Frontend check
-        run: pnpm check
+      - name: Check generated connection types
+        run: pnpm check:connection-types
+
+      - name: Check frontend formatting
+        run: pnpm exec oxfmt --check "apps/desktop/src/**/*.{ts,vue}"
+
+      - name: Lint frontend
+        run: pnpm lint
 
       # Rebuild and diff the committed docs-export bundle after the frontend
       # checks so source changes cannot silently leave stale generated assets.
@@ -55,6 +61,88 @@ jobs:
       - name: Report any docs export bundle drift
         run: git diff --exit-code -- crates/dbx-core/assets/
         continue-on-error: true
+
+  frontend-typecheck:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-22.04
+    env:
+      NPM_CONFIG_LOGLEVEL: error
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.27.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.13.0
+          cache: pnpm
+
+      - name: Install frontend dependencies
+        run: pnpm --filter dbx... install --frozen-lockfile
+
+      - name: Type-check frontend
+        run: pnpm exec vue-tsc --noEmit --project apps/desktop/tsconfig.json
+
+  frontend-test:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-22.04
+    env:
+      NPM_CONFIG_LOGLEVEL: error
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    name: frontend-test (${{ matrix.shard }}/2)
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.27.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.13.0
+          cache: pnpm
+
+      - name: Install frontend dependencies
+        run: pnpm --filter dbx... install --frozen-lockfile
+
+      - name: Run frontend test shard
+        env:
+          VITEST_SHARD: ${{ matrix.shard }}/2
+        run: >-
+          pnpm exec vitest run
+          --shard=${{ matrix.shard }}/2
+          --reporter=default
+          --reporter=./.github/scripts/ci-vitest-file-timing-reporter.mjs
+
+  frontend:
+    needs:
+      - changes
+      - frontend-checks
+      - frontend-typecheck
+      - frontend-test
+    if: always()
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.13.0
+      - name: Check selected frontend jobs
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: node .github/scripts/ci-gate.mjs frontend
 
   github-scripts:
     needs: changes

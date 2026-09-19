@@ -179,6 +179,22 @@ test("gates accept only successful selected jobs and intentionally skipped unsel
   assert.ok(gateFailures({ changes: { result: "success", outputs: { plan: "null" } } }, "rust").length);
 });
 
+test("the frontend gate checks every selected frontend job", () => {
+  const needs = results(["docs/README.md"]);
+  needs.changes.outputs.frontend = "true";
+  for (const job of ["frontend-checks", "frontend-typecheck", "frontend-test"]) {
+    needs[job] = { result: "success" };
+  }
+  assert.deepEqual(gateFailures(needs, "frontend"), []);
+  needs["frontend-test"].result = "failure";
+  assert.ok(gateFailures(needs, "frontend").length);
+  needs.changes.outputs.frontend = "false";
+  for (const job of ["frontend-checks", "frontend-typecheck", "frontend-test"]) {
+    needs[job] = { result: "skipped" };
+  }
+  assert.deepEqual(gateFailures(needs, "frontend"), []);
+});
+
 test("git diff routing includes both sides of renames, deleted files, and unusual filenames", () => {
   const directory = mkdtempSync(path.join(tmpdir(), "dbx-ci-plan-"));
   const git = (...args) => execFileSync("git", args, { cwd: directory, encoding: "utf8", stdio: "pipe" }).trim();

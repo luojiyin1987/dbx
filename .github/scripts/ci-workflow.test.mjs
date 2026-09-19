@@ -36,6 +36,7 @@ test("Agent and Rust matrices are bounded and do not cancel sibling failures", (
 test("stable Rust, Agent and overall gates always inspect selected upstream results", () => {
   for (const [name, mode, dependencies] of [["rust", "rust", ["fast-checks", "rust-fmt-clippy", "rust-test"]],
     ["agents", "agents", ["fast-checks", "agent-checks", "agent-rust", "agent-go", "agent-integration", "agent-java"]],
+    ["frontend", "frontend", ["frontend-checks", "frontend-typecheck", "frontend-test"]],
     ["ci", "all", ["rust", "agents", "frontend", "packages", "windows-win7-bundle", "duckdb-windows-driver", "nix-packaging"]]]) {
     const content = job(name);
     assert.match(content, /if: always\(\)/);
@@ -43,6 +44,15 @@ test("stable Rust, Agent and overall gates always inspect selected upstream resu
     assert.ok(content.includes("${{ toJSON(needs) }}"));
     for (const dependency of dependencies) assert.match(content, new RegExp(`^      - ${dependency}$`, "m"));
   }
+});
+
+test("frontend tests use two shards on separate runners", () => {
+  const content = job("frontend-test");
+  assert.match(content, /fail-fast: false/);
+  assert.match(content, /shard: \[1, 2\]/);
+  assert.ok(content.includes("--shard=${{ matrix.shard }}/2"));
+  assert.ok(content.includes("ci-vitest-file-timing-reporter.mjs"));
+  assert.doesNotMatch(job("frontend-typecheck"), /vitest|oxfmt|oxlint/);
 });
 
 test("every old Agent stage has an independent owner and Java packaging remains strict", () => {
