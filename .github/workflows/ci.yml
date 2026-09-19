@@ -269,6 +269,35 @@ jobs:
         continue-on-error: true
         run: ${SCCACHE_PATH} --show-stats
 
+  windows-standard-check:
+    needs: changes
+    if: needs.changes.outputs.windows_win7_bundle == 'true'
+    runs-on: windows-2022
+    timeout-minutes: 45
+    env:
+      CARGO_INCREMENTAL: "0"
+      RUSTFLAGS: -C debuginfo=line-tables-only -C target-feature=+crt-static
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_GHA_VERSION: windows-standard-v1
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Rust for standard Windows
+        uses: dtolnay/rust-toolchain@1.97.1
+
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+        with:
+          version: "v0.16.0"
+
+      - name: Check standard Windows dependency path
+        run: cargo check --locked --package dbx --no-default-features --target x86_64-pc-windows-msvc
+
+      - name: Show sccache stats
+        if: always()
+        continue-on-error: true
+        run: sccache --show-stats
+
   windows-win7-bundle:
     needs: changes
     if: needs.changes.outputs.windows_win7_bundle == 'true'
@@ -293,12 +322,6 @@ jobs:
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Setup Rust for standard Windows
-        uses: dtolnay/rust-toolchain@1.97.1
-
-      - name: Check standard Windows dependency path
-        run: cargo check --locked --package dbx --no-default-features --target x86_64-pc-windows-msvc
 
       - name: Setup Rust for Windows 7
         uses: dtolnay/rust-toolchain@nightly
@@ -1116,6 +1139,7 @@ jobs:
       - frontend
       - github-scripts
       - packages
+      - windows-standard-check
       - windows-win7-bundle
       - duckdb-windows-driver
       - jdbc

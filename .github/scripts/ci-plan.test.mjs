@@ -215,14 +215,17 @@ test("git diff routing includes both sides of renames, deleted files, and unusua
 test("the final gate rejects absent routing outputs and skipped selected jobs", () => {
   const needs = results(["docs/README.md"]);
   const routed = { frontend: "frontend", packages: "packages", "github-scripts": "github_scripts",
-    "windows-win7-bundle": "windows_win7_bundle", "duckdb-windows-driver": "duckdb_windows", jdbc: "jdbc",
-    "offline-jdbc-release": "offline_jdbc", "nix-packaging": "nix" };
+    "windows-standard-check": "windows_win7_bundle", "windows-win7-bundle": "windows_win7_bundle",
+    "duckdb-windows-driver": "duckdb_windows", jdbc: "jdbc", "offline-jdbc-release": "offline_jdbc", "nix-packaging": "nix" };
   needs.rust = needs.agents = { result: "success" };
   for (const [job, output] of Object.entries(routed)) {
     needs[job] = { result: "skipped" };
     needs.changes.outputs[output] = "false";
   }
   assert.deepEqual(gateFailures(needs, "all"), []);
+  needs["windows-standard-check"].result = "failure";
+  assert.ok(gateFailures(needs, "all").length);
+  needs["windows-standard-check"].result = "skipped";
   needs.changes.outputs.frontend = "true";
   assert.ok(gateFailures(needs, "all").length);
   needs.frontend.result = "success";
