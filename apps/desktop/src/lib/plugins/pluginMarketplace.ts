@@ -1,4 +1,5 @@
 import type { InstalledPlugin, PluginMarketplaceArtifact, PluginMarketplacePlugin, PluginRepository, PluginRepositoryCatalogResult } from "@/types/database";
+import { uuid } from "@/lib/common/utils";
 
 export type MarketplacePluginStatus = "install" | "installed" | "update" | "unsupported";
 
@@ -77,21 +78,13 @@ function installationClientId(): string {
     if (typeof localStorage === "undefined") return "";
     let id = localStorage.getItem(INSTALLATION_ID_STORAGE_KEY);
     if (!id || !INSTALLATION_ID_PATTERN.test(id)) {
-      id = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : randomUuidFallback();
+      id = uuid();
       localStorage.setItem(INSTALLATION_ID_STORAGE_KEY, id);
     }
     return id;
   } catch {
     return "";
   }
-}
-
-function randomUuidFallback(): string {
-  const hex = () =>
-    Math.floor(Math.random() * 0x10000)
-      .toString(16)
-      .padStart(4, "0");
-  return `${hex()}${hex()}-${hex()}-${hex()}-${hex()}-${hex()}${hex()}${hex()}`;
 }
 
 export type PluginInstallBeaconKind = "install" | "update";
