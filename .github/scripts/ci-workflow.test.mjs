@@ -44,7 +44,7 @@ test("stable Rust, Agent and overall gates always inspect selected upstream resu
     ["rust", "rust", ["fast-checks", "rust-fmt-clippy", "rust-test"]],
     ["agents", "agents", ["fast-checks", "agent-checks", "agent-rust", "agent-go", "agent-integration", "agent-java"]],
     ["frontend", "frontend", ["frontend-checks", "frontend-typecheck", "frontend-test"]],
-    ["ci", "all", ["rust", "agents", "frontend", "packages", "windows-win7-bundle", "duckdb-windows-driver", "nix-packaging"]],
+    ["ci", "all", ["rust", "agents", "frontend", "packages", "windows-standard-check", "windows-win7-bundle", "duckdb-windows-driver", "nix-packaging"]],
   ]) {
     const content = job(name);
     assert.match(content, /if: always\(\)/);
@@ -116,6 +116,21 @@ test("the Win7 loader is a vendored source input, not a registry patch", () => {
   for (const content of [win7, releaseWin7]) {
     assert.doesNotMatch(content, /(?:^|\n)\s+(?:CC|CXX):\s*"sccache cl\.exe"/);
   }
+});
+
+test("standard Windows compatibility checks run separately with sccache", () => {
+  const standard = job("windows-standard-check");
+  assert.ok(standard.includes("needs.changes.outputs.windows_win7_bundle == 'true'"));
+  assert.ok(standard.includes("RUSTC_WRAPPER: sccache"));
+  assert.ok(standard.includes('SCCACHE_GHA_ENABLED: "true"'));
+  assert.ok(standard.includes("SCCACHE_GHA_VERSION: windows-standard-v1"));
+  assert.ok(standard.includes("fc920bf0ec8de6ee65d409111f7ec508035751ba"));
+  assert.ok(standard.includes('version: "v0.16.0"'));
+  assert.ok(standard.includes("cargo check --locked --package dbx --no-default-features --target x86_64-pc-windows-msvc"));
+  assert.ok(standard.includes("sccache --show-stats"));
+
+  const win7 = job("windows-win7-bundle");
+  assert.doesNotMatch(win7, /x86_64-pc-windows-msvc|Setup Rust for standard Windows/);
 });
 test("the planner uses the exact event base and preserves a single workflow cancellation scope", () => {
   const changes = job("changes");

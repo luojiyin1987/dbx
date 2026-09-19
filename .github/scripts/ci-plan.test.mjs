@@ -27,6 +27,11 @@ const metadata = {
 };
 const plan = (files, options = {}) => planCi({ files, metadata, root, ...options });
 const groups = (result) => result.rust_matrix.include.map((entry) => entry.group);
+// Keep the gate fixtures in sync with ci-gate.mjs routedJobs. Both Windows jobs
+// share the windows_win7_bundle routing output.
+const routedJobs = { frontend: "frontend", packages: "packages", "github-scripts": "github_scripts",
+  "windows-standard-check": "windows_win7_bundle", "windows-win7-bundle": "windows_win7_bundle",
+  "duckdb-windows-driver": "duckdb_windows", jdbc: "jdbc", "offline-jdbc-release": "offline_jdbc", "nix-packaging": "nix" };
 
 test("foundation changes select transitive consumers and standalone DuckDB", () => {
   const result = plan(["crates/dbx-types/src/lib.rs"]);
@@ -214,20 +219,39 @@ test("git diff routing includes both sides of renames, deleted files, and unusua
 
 test("the final gate rejects absent routing outputs and skipped selected jobs", () => {
   const needs = results(["docs/README.md"]);
-  const routed = { frontend: "frontend", packages: "packages", "github-scripts": "github_scripts",
-    "windows-win7-bundle": "windows_win7_bundle", "duckdb-windows-driver": "duckdb_windows", jdbc: "jdbc",
-    "offline-jdbc-release": "offline_jdbc", "nix-packaging": "nix" };
   needs.rust = needs.agents = { result: "success" };
-  for (const [job, output] of Object.entries(routed)) {
+  for (const [job, output] of Object.entries(routedJobs)) {
     needs[job] = { result: "skipped" };
     needs.changes.outputs[output] = "false";
   }
   assert.deepEqual(gateFailures(needs, "all"), []);
+  needs["windows-standard-check"].result = "failure";
+  assert.ok(gateFailures(needs, "all").length);
+  needs["windows-standard-check"].result = "skipped";
   needs.changes.outputs.frontend = "true";
   assert.ok(gateFailures(needs, "all").length);
   needs.frontend.result = "success";
   assert.deepEqual(gateFailures(needs, "all"), []);
   delete needs.changes.outputs.nix;
+  assert.ok(gateFailures(needs, "all").length);
+});
+
+test("the final gate requires both Windows jobs when the bundle routing is selected", () => {
+  const needs = results(["docs/README.md"]);
+  needs.rust = needs.agents = { result: "success" };
+  for (const [job, output] of Object.entries(routedJobs)) {
+    needs[job] = { result: "skipped" };
+    needs.changes.outputs[output] = "false";
+  }
+  needs.changes.outputs.windows_win7_bundle = "true";
+  needs["windows-standard-check"].result = "success";
+  needs["windows-win7-bundle"].result = "success";
+  assert.deepEqual(gateFailures(needs, "all"), []);
+
+  needs["windows-standard-check"].result = "skipped";
+  assert.ok(gateFailures(needs, "all").length);
+  needs["windows-standard-check"].result = "success";
+  needs["windows-win7-bundle"].result = "skipped";
   assert.ok(gateFailures(needs, "all").length);
 });
 
