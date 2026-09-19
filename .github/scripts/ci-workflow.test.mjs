@@ -107,12 +107,14 @@ test("the Win7 loader is a vendored source input, not a registry patch", () => {
   const win7 = job("windows-win7-bundle");
   assert.ok(win7.includes("RUSTC_WRAPPER: sccache"));
   assert.ok(win7.includes("SCCACHE_GHA_VERSION: win7-webview2-1.0.902.49-ci-v2"));
+  assert.ok(win7.includes('SCCACHE_IDLE_TIMEOUT: "0"'));
   assert.ok(win7.includes('CARGO_PROFILE_RELEASE_LTO: "thin"'));
   assert.ok(win7.includes('CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "8"'));
   const buildStep = win7.indexOf("- name: Build DBX for Windows 7");
   const zeroStats = win7.indexOf("sccache --zero-stats", buildStep);
   const cargoBuild = win7.indexOf("cargo build --locked --package dbx", buildStep);
   assert.ok(buildStep >= 0 && zeroStats > buildStep && cargoBuild > zeroStats);
+  assert.doesNotMatch(win7, /Probe rustc wrapper|SCCACHE_LOG|Show sccache debug log/);
 
   const release = readFileSync(new URL("../workflows/release.yml", import.meta.url), "utf8");
   const releaseWin7 = workflowJob(release, "build-windows-7-offline");
