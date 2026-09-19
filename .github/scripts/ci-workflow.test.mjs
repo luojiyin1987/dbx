@@ -128,6 +128,7 @@ test("Win7 builds use a checked repo-local WebView2 crate", () => {
   for (const content of [job("windows-win7-bundle"), releaseWorkflow]) {
     assert.ok(content.includes("SCCACHE_GHA_VERSION: windows-win7-webview2-1.0.902.49-v1"));
     assert.ok(content.includes("prepare-webview2-win7-loader.ps1"));
+    assert.ok(content.indexOf("mozilla-actions/sccache-action") < content.indexOf("prepare-webview2-win7-loader.ps1"));
   }
 });
 
