@@ -377,6 +377,11 @@ jobs:
           toolchain: nightly-2026-07-22
           components: rust-src
 
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
+        with:
+          arch: x64
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
@@ -386,16 +391,9 @@ jobs:
           version: "v0.16.0"
 
       - name: Build DuckDB Windows driver
-        shell: bash
-        run: |
-          pushd agents/drivers/duckdb
-          cargo build \
-            --locked \
-            --release \
-            --bin dbx-duckdb-driver \
-            --target x86_64-win7-windows-msvc \
-            -Z build-std=std,panic_abort
-          popd
+        shell: pwsh
+        working-directory: agents/drivers/duckdb
+        run: cargo build --locked --release --bin dbx-duckdb-driver --target x86_64-win7-windows-msvc -Z build-std=std,panic_abort
 
       - name: Validate DuckDB Windows driver
         shell: bash

@@ -83,6 +83,7 @@ test("DuckDB Windows builds persist Rust and C++ compiler results", () => {
   assert.ok(content.includes('SCCACHE_GHA_ENABLED: "true"'));
   assert.ok(content.includes('CC: "sccache cl.exe"'));
   assert.ok(content.includes('CXX: "sccache cl.exe"'));
+  assert.ok(content.includes("0b201ec74fa43914dc39ae48a89fd1d8cb592756"));
   assert.ok(content.includes("fc920bf0ec8de6ee65d409111f7ec508035751ba"));
   assert.ok(content.includes('version: "v0.16.0"'));
 });
