@@ -71,6 +71,12 @@ test("every old Agent stage has an independent owner and Java packaging remains 
   for (const name of ["agent-rust", "agent-go", "agent-integration", "agent-java"]) assert.doesNotMatch(job(name), /continue-on-error: true/);
 });
 
+test("native Rust driver caches exclude failed build artifacts", () => {
+  const content = job("agent-rust");
+  assert.ok(content.includes('shared-key: ci-agent-rust-v2-${{ matrix.driver }}'));
+  assert.ok(content.includes("cache-on-failure: false"));
+});
+
 test("the planner uses the exact event base and preserves a single workflow cancellation scope", () => {
   const changes = job("changes");
   assert.ok(changes.includes("github.event.pull_request.base.sha || github.event.before"));

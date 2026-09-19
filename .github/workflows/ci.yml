@@ -986,7 +986,9 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: agents/drivers/${{ matrix.driver }} -> target
-          cache-on-failure: true
+          # A failed bundled native build can leave link-compatible but invalid artifacts.
+          shared-key: ci-agent-rust-v2-${{ matrix.driver }}
+          cache-on-failure: false
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Native Rust driver tests
         env:
