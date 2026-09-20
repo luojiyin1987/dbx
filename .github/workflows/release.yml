@@ -685,6 +685,11 @@ jobs:
           gh release upload "${env:GITHUB_REF_NAME}" $offlineName $checksumName `
             --repo "${env:GITHUB_REPOSITORY}" --clobber
 
+      - name: Show sccache stats
+        if: always()
+        continue-on-error: true
+        run: ${SCCACHE_PATH} --show-stats
+
       - name: Remove temporary VSign files
         if: always()
         shell: pwsh
