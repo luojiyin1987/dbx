@@ -309,6 +309,7 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 120
     env:
+      # Keep this CI profile stable for the warm-cache timing run.
       CARGO_INCREMENTAL: "0"
       CARGO_PROFILE_RELEASE_LTO: "thin"
       CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "8"
