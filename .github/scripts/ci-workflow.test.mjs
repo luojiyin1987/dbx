@@ -82,14 +82,15 @@ test("native Rust driver caches exclude failed build artifacts", () => {
 test("Rust test jobs install pinned nextest and retain separate doctests", () => {
   const pluginDevHost = readFileSync(new URL("../workflows/plugin-dev-host.yml", import.meta.url), "utf8");
   const pluginRelease = readFileSync(new URL("../workflows/plugin-cli-release.yml", import.meta.url), "utf8");
-  const consumers = [job("rust-test"), job("agent-rust"), job("agent-integration"),
+  const consumers = [job("packages"), job("rust-test"), job("agent-rust"), job("agent-integration"),
     job("test", pluginDevHost), job("prepare", pluginRelease)];
   for (const content of consumers) {
     assert.ok(content.includes("uses: taiki-e/install-action@9114bf4d891761788c546334fd37538eae1bf8b3"));
     assert.ok(content.includes("tool: cargo-nextest@0.9.137"));
     assert.doesNotMatch(content, /cargo test (?!.*--doc)/);
     const testCommand = content.indexOf("cargo nextest run") >= 0 ? "cargo nextest run"
-      : content.includes("ci-rust.mjs test") ? "ci-rust.mjs test" : "ci-agent-integration.sh";
+      : content.includes("pnpm test:packages") ? "pnpm test:packages"
+        : content.includes("ci-rust.mjs test") ? "ci-rust.mjs test" : "ci-agent-integration.sh";
     assert.ok(content.indexOf("tool: cargo-nextest@0.9.137") < content.indexOf(testCommand));
   }
   assert.ok(job("rust-test").includes('ci-rust.mjs doctest "$RUST_TEST_GROUP" "$RUST_FEATURE_MODE"'));
