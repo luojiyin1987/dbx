@@ -316,6 +316,9 @@ jobs:
       SCCACHE_GHA_ENABLED: "true"
       SCCACHE_GHA_VERSION: win7-webview2-1.0.902.49-v1
       SCCACHE_IDLE_TIMEOUT: "0"
+      # Single source for the job's nightly pin: the toolchain step and the
+      # prebuilt AWS-LC cache key must move together.
+      WIN7_NIGHTLY_TOOLCHAIN: nightly-2026-07-22
     steps:
       - uses: actions/checkout@v7
 
@@ -336,7 +339,7 @@ jobs:
       - name: Setup Rust for Windows 7
         uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2026-07-22
+          toolchain: ${{ env.WIN7_NIGHTLY_TOOLCHAIN }}
           components: rust-src
 
       - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
@@ -348,7 +351,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/win7-aws-lc-install
-          key: win7-aws-lc-v2-${{ runner.os }}-nightly-2026-07-22-${{ hashFiles('.github/fixtures/win7-aws-lc-cache/Cargo.lock') }}
+          # Key covers the workspace Cargo.lock too: a main-workspace aws-lc-sys
+          # bump must rebuild the prebuilt artifacts instead of reusing the
+          # cached headers/lib for a stale version.
+          key: win7-aws-lc-v3-${{ runner.os }}-${{ env.WIN7_NIGHTLY_TOOLCHAIN }}-${{ hashFiles('Cargo.lock', '.github/fixtures/win7-aws-lc-cache/Cargo.lock') }}
 
       - name: Build Win7 AWS-LC cache
         if: steps.aws-lc-cache.outputs.cache-hit != 'true'
