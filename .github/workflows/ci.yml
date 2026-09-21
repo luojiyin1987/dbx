@@ -361,8 +361,6 @@ jobs:
       - name: Build DBX for Windows 7
         shell: pwsh
         env:
-          CC: ${{ github.workspace }}\.github\scripts\sccache-cl.cmd
-          CXX: ${{ github.workspace }}\.github\scripts\sccache-cl.cmd
           CMAKE_C_COMPILER_LAUNCHER: sccache
           CMAKE_CXX_COMPILER_LAUNCHER: sccache
         run: |
