@@ -124,7 +124,7 @@ test("DuckDB Windows builds persist Rust and C++ compiler results", () => {
   assert.ok(content.includes('version: "v0.16.0"'));
 });
 
-test("Windows compatibility jobs cache Rust compilation without wrapping C or C++", () => {
+test("Windows compatibility jobs cache Rust and native compilation", () => {
   assert.ok(job("changes").includes("'vendor/webview2-com-sys/**'"));
   const standard = job("windows-standard-check");
   assert.ok(standard.includes("needs.changes.outputs.windows_win7_bundle == 'true'"));
@@ -144,7 +144,12 @@ test("Windows compatibility jobs cache Rust compilation without wrapping C or C+
   assert.ok(win7.includes("--timings"));
   assert.ok(win7.includes("name: DBX-win7-cargo-timings"));
   assert.ok(win7.includes("path: target/cargo-timings/"));
-  assert.doesNotMatch(win7, /^\s+(?:CC|CXX):/m);
+  assert.ok(win7.includes("CC: ${{ github.workspace }}\\.github\\scripts\\sccache-cl.cmd"));
+  assert.ok(win7.includes("CXX: ${{ github.workspace }}\\.github\\scripts\\sccache-cl.cmd"));
+  assert.ok(win7.includes("CMAKE_C_COMPILER_LAUNCHER: sccache"));
+  assert.ok(win7.includes("CMAKE_CXX_COMPILER_LAUNCHER: sccache"));
+  const wrapper = readFileSync(new URL("./sccache-cl.cmd", import.meta.url), "utf8");
+  assert.ok(wrapper.includes('"%SCCACHE_PATH%" cl.exe %*'));
 });
 
 test("the planner uses the exact event base and preserves a single workflow cancellation scope", () => {
