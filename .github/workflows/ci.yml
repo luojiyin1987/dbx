@@ -348,7 +348,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/win7-aws-lc-install
-          key: win7-aws-lc-v1-${{ runner.os }}-nightly-2026-07-22-${{ hashFiles('.github/fixtures/win7-aws-lc-cache/Cargo.lock') }}
+          key: win7-aws-lc-v2-${{ runner.os }}-nightly-2026-07-22-${{ hashFiles('.github/fixtures/win7-aws-lc-cache/Cargo.lock') }}
 
       - name: Build Win7 AWS-LC cache
         if: steps.aws-lc-cache.outputs.cache-hit != 'true'
@@ -396,8 +396,22 @@ jobs:
             -Destination (Join-Path $installRoot "include") -Recurse -Force
           Copy-Item -LiteralPath $library.FullName `
             -Destination (Join-Path $installRoot "lib/crypto.lib") -Force
-          Copy-Item -LiteralPath $bindings `
-            -Destination (Join-Path $installRoot "share/rust/aws_lc_bindings.rs") -Force
+          $bindingOutput = Join-Path $installRoot "share/rust/aws_lc_bindings.rs"
+          $insideInnerAttribute = $false
+          $bindingLines = foreach ($line in Get-Content -LiteralPath $bindings) {
+            if (!$insideInnerAttribute -and $line -eq "#![allow(") {
+              $insideInnerAttribute = $true
+              continue
+            }
+            if ($insideInnerAttribute) {
+              if ($line -eq ")]") {
+                $insideInnerAttribute = $false
+              }
+              continue
+            }
+            $line
+          }
+          $bindingLines | Set-Content -LiteralPath $bindingOutput -Encoding utf8NoBOM
           $timer.Stop()
           "AWS-LC cache build: $([math]::Round($timer.Elapsed.TotalSeconds, 1)) seconds" >> $env:GITHUB_STEP_SUMMARY
         env:
