@@ -145,6 +145,17 @@ test("Windows compatibility jobs cache Rust compilation without wrapping C or C+
   assert.ok(win7.includes("--timings"));
   assert.ok(win7.includes("name: DBX-win7-cargo-timings"));
   assert.ok(win7.includes("path: target/cargo-timings/"));
+  assert.ok(win7.includes("name: Profile heavy Win7 Rust units"));
+  assert.ok(win7.includes('Name = "dbx-lib"'));
+  assert.ok(win7.includes('Name = "dbx-core"'));
+  assert.ok(win7.includes('Name = "dbx-mcp"'));
+  assert.ok(win7.includes('$env:RUSTC_WRAPPER = ""'));
+  assert.ok(win7.includes('"-Zself-profile-events=default,query-blocked"'));
+  assert.ok(win7.includes("name: DBX-win7-heavy-unit-self-profiles"));
+  assert.ok(win7.includes("path: ${{ runner.temp }}/rustc-heavy-unit-profiles/"));
+  assert.ok(win7.includes("retention-days: 3"));
+  assert.ok(win7.indexOf("name: Build DBX for Windows 7") < win7.indexOf("name: Profile heavy Win7 Rust units"));
+  assert.ok(win7.indexOf("name: Profile heavy Win7 Rust units") < win7.indexOf("name: Upload Win7 heavy-unit self-profiles"));
   assert.doesNotMatch(win7, /^\s+(?:CC|CXX):/m);
 });
 
