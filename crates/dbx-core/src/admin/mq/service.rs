@@ -1,7 +1,7 @@
-//! Service-layer functions for message queue admin operations. These `*_core`
-//! functions are shared by both the desktop command layer
-//! (`src-tauri/src/commands/mq_cmd.rs`) and the web route layer
-//! (`crates/dbx-web/src/routes/mq.rs`), keeping the business logic unified.
+//! Service-layer functions for message queue admin operations.
+//! The desktop commands are in `crates/dbx-tauri-mq/src/commands.rs`.
+//! The web routes are in `crates/dbx-web/src/routes/mq.rs`.
+//! Both layers share these `*_core` functions.
 //!
 //! Mirrors the pattern used by `agent_kv::*_core`.
 

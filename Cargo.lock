@@ -2058,6 +2058,7 @@ dependencies = [
  "dbx-core",
  "dbx-mcp",
  "dbx-tauri-consul",
+ "dbx-tauri-mq",
  "deadpool-postgres",
  "font-kit",
  "futures",
@@ -2616,6 +2617,15 @@ version = "0.1.0"
 dependencies = [
  "dbx-core",
  "serde",
+ "serde_json",
+ "tauri",
+]
+
+[[package]]
+name = "dbx-tauri-mq"
+version = "0.1.0"
+dependencies = [
+ "dbx-core",
  "serde_json",
  "tauri",
 ]

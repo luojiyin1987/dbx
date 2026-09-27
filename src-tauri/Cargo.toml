@@ -18,7 +18,7 @@ custom-protocol = ["tauri/custom-protocol"]
 duckdb-sidecar = ["dbx-core/duckdb-sidecar"]
 os-keyring = ["dbx-core/os-keyring"]
 dynamodb = ["dbx-core/dynamodb"]
-mq-admin = ["dbx-core/mq-admin"]
+mq-admin = ["dbx-core/mq-admin", "dbx-tauri-mq/mq-admin"]
 sqlite-sqlcipher = ["dbx-core/sqlite-sqlcipher"]
 sqlite-multiple-ciphers = ["dbx-core/sqlite-multiple-ciphers"]
 sqlite-bundled = ["dbx-core/sqlite-bundled"]
@@ -73,6 +73,7 @@ zip = "4.6.1"
 dbx-core = { path = "../crates/dbx-core", default-features = false }
 dbx-mcp = { path = "../crates/dbx-mcp", default-features = false, features = ["duckdb-sidecar", "mq-admin"] }
 dbx-tauri-consul = { path = "../crates/dbx-tauri-consul" }
+dbx-tauri-mq = { path = "../crates/dbx-tauri-mq", default-features = false }
 wry = { path = "../vendor/wry" }
 axum = { version = "0.8", features = ["ws"] }
 font-kit = "0.14.3"

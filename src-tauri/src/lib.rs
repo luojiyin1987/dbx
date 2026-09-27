@@ -1804,7 +1804,8 @@ pub fn run() {
                 request_app_close(app, "settings");
             }
         })
-        .invoke_handler(migration_gate::guard_handler(dbx_tauri_consul::route(tauri::generate_handler![
+        .invoke_handler(migration_gate::guard_handler(dbx_tauri_consul::route(dbx_tauri_mq::route(
+            tauri::generate_handler![
             commands::ai::ai_complete,
             commands::ai::ai_stream,
             commands::ai::ai_agent_stream,
@@ -2391,156 +2392,6 @@ pub fn run() {
             commands::mongo_cmd::mongo_find_one_and_replace,
             commands::mongo_cmd::mongo_find_one_and_delete,
             #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_test_connection,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_list_tenants,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_get_tenant,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_create_tenant,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_update_tenant,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_delete_tenant,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_list_namespaces,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_create_namespace,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_delete_namespace,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_get_namespace_policies,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_list_topics,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_list_topics_page,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_create_topic,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_delete_topic,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_update_partitions,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_get_topic_stats,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_get_topic_internal_stats,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_list_exchanges,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_list_exchanges_page,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_create_exchange,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_delete_exchange,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_list_bindings,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_bind,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_unbind,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_list_subscriptions,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_enrich_subscriptions,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_get_kafka_consumer_group_snapshot,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_create_subscription,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_delete_subscription,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_skip_messages,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_reset_cursor,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_clear_backlog,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_get_consumer_group_config,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_alter_consumer_group_config,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_peek_messages,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_expire_messages,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_list_producers,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_list_consumers,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_unload_topic,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_list_client_connections,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_list_client_channels,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_close_client_connection,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_set_publish_rate,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_set_dispatch_rate,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_set_subscribe_rate,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_set_backlog_quota,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_set_retention,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_get_effective_policies,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_grant_permission,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_revoke_permission,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_list_permissions,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_list_users,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_create_user,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_delete_user,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_list_user_permissions,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_grant_user_permission,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_revoke_user_permission,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_list_policies,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_set_policy,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_delete_policy,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_get_overview,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_list_nodes,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_issue_token,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_list_token_records,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_get_backlog,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_get_cluster_info,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_get_topic_route,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_alter_topic_config,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_skip_topic_accumulation,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_view_message,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_query_messages_by_key,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_query_messages_by_topic,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_query_message_trace,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_raw_request,
-            #[cfg(feature = "mq-admin")]
-            commands::mq_cmd::mq_send_message,
-            #[cfg(feature = "mq-admin")]
             commands::mqtt_cmd::mqtt_get_broker_info,
             #[cfg(feature = "mq-admin")]
             commands::mqtt_cmd::mqtt_subscribe,
@@ -2637,7 +2488,7 @@ pub fn run() {
             commands::tunnel_profiles::load_tunnel_profiles,
             commands::tunnel_profiles::save_tunnel_profiles,
             commands::tunnel_profiles::test_tunnel_profile,
-        ])))
+        ]))))
         .build(tauri::generate_context!())
         .inspect(|app| {
             append_startup_probe(format!("tauri application built after {:?}", startup_begin.elapsed()));

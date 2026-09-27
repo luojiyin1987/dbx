@@ -33,8 +33,6 @@ pub mod mongo_cmd;
 pub mod mongodb_dump;
 pub mod mongodb_import_export;
 #[cfg(feature = "mq-admin")]
-pub mod mq_cmd;
-#[cfg(feature = "mq-admin")]
 pub mod mqtt_cmd;
 pub mod nacos_cmd;
 pub mod plugin_download;
