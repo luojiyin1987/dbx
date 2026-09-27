@@ -136,7 +136,18 @@ test("Windows compatibility jobs cache Rust compilation without wrapping C or C+
   assert.ok(standard.includes("cargo check --locked --package dbx --no-default-features --target x86_64-pc-windows-msvc"));
   assert.ok(standard.includes("sccache --show-stats"));
 
+  const prebuild = job("windows-win7-prebuild");
+  assert.ok(prebuild.includes("needs: changes"));
+  assert.ok(prebuild.includes("needs.changes.outputs.windows_win7_bundle == 'true'"));
+  assert.ok(prebuild.includes("package: dbx-core"));
+  assert.ok(prebuild.includes("package: dbx-mcp"));
+  assert.ok(prebuild.includes("fail-fast: false"));
+  assert.ok(prebuild.includes("--no-default-features"));
+  assert.ok(prebuild.includes("-Z build-std=std,panic_abort"));
+  for (const setting of ["RUSTC_WRAPPER: sccache", 'SCCACHE_GHA_ENABLED: "true"', "SCCACHE_GHA_VERSION: win7-webview2-1.0.902.49-v1", 'CARGO_PROFILE_RELEASE_LTO: "off"', 'CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "8"']) assert.ok(prebuild.includes(setting));
+
   const win7 = job("windows-win7-bundle");
+  assert.match(win7, /^      - windows-win7-prebuild$/m);
   assert.doesNotMatch(win7, /x86_64-pc-windows-msvc|Setup Rust for standard Windows/);
   for (const setting of ["RUSTC_WRAPPER: sccache", 'SCCACHE_GHA_ENABLED: "true"', "SCCACHE_GHA_VERSION: win7-webview2-1.0.902.49-v1", 'SCCACHE_IDLE_TIMEOUT: "0"', 'CARGO_PROFILE_RELEASE_LTO: "off"', 'CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "8"']) assert.ok(win7.includes(setting));
   assert.ok(win7.includes("fc920bf0ec8de6ee65d409111f7ec508035751ba"));
