@@ -2616,6 +2616,7 @@ version = "0.1.0"
 dependencies = [
  "dbx-core",
  "serde",
+ "serde_json",
  "tauri",
 ]
 
