@@ -145,6 +145,19 @@ test("Windows compatibility jobs cache Rust compilation without wrapping C or C+
   assert.ok(win7.includes("--timings"));
   assert.ok(win7.includes("name: DBX-win7-cargo-timings"));
   assert.ok(win7.includes("path: target/cargo-timings/"));
+  assert.ok(win7.includes("name: Trace dbx library LLVM work"));
+  assert.ok(win7.includes("--package dbx"));
+  assert.ok(win7.includes("--lib"));
+  assert.ok(win7.includes('$env:RUSTC_WRAPPER = ""'));
+  assert.ok(win7.includes('"-Zllvm-time-trace"'));
+  assert.ok(win7.includes('"-Zhuman-readable-cgu-names"'));
+  assert.ok(win7.includes('"-Zdump-mono-stats=$traceRoot"'));
+  assert.ok(win7.includes('"-Zdump-mono-stats-format=json"'));
+  assert.ok(win7.includes("name: DBX-win7-dbx-lib-llvm-trace"));
+  assert.ok(win7.includes("path: ${{ runner.temp }}/dbx-lib-llvm-trace/"));
+  assert.ok(win7.includes("retention-days: 3"));
+  assert.ok(win7.indexOf("name: Build DBX for Windows 7") < win7.indexOf("name: Trace dbx library LLVM work"));
+  assert.ok(win7.indexOf("name: Trace dbx library LLVM work") < win7.indexOf("name: Upload dbx library LLVM trace"));
   assert.doesNotMatch(win7, /^\s+(?:CC|CXX):/m);
 });
 
