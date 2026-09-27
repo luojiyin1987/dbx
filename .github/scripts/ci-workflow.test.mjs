@@ -142,6 +142,7 @@ test("Windows compatibility jobs cache Rust compilation without wrapping C or C+
   assert.ok(prebuild.includes("package: dbx-core"));
   assert.ok(prebuild.includes("package: dbx-mcp"));
   assert.ok(prebuild.includes("fail-fast: false"));
+  assert.ok(prebuild.includes("--lib"));
   assert.ok(prebuild.includes("--no-default-features"));
   assert.ok(prebuild.includes("-Z build-std=std,panic_abort"));
   for (const setting of ["RUSTC_WRAPPER: sccache", 'SCCACHE_GHA_ENABLED: "true"', "SCCACHE_GHA_VERSION: win7-webview2-1.0.902.49-v1", 'CARGO_PROFILE_RELEASE_LTO: "off"', 'CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "8"']) assert.ok(prebuild.includes(setting));

@@ -349,6 +349,7 @@ jobs:
           $timer = [System.Diagnostics.Stopwatch]::StartNew()
           cargo build --locked --release `
             --package '${{ matrix.package }}' `
+            --lib `
             --no-default-features `
             --features '${{ matrix.features }}' `
             --target x86_64-win7-windows-msvc `
