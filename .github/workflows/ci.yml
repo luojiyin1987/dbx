@@ -136,10 +136,6 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22.13.0
       - name: Check selected frontend jobs
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
@@ -940,10 +936,6 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22.13.0
       - name: Check selected rust jobs
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
@@ -1205,10 +1197,6 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22.13.0
       - name: Check selected agents jobs
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
@@ -1488,10 +1476,6 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22.13.0
       - name: Check selected all jobs
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}

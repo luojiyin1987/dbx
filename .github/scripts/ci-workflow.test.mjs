@@ -47,6 +47,8 @@ test("stable Rust, Agent and overall gates always inspect selected upstream resu
     assert.match(content, /if: always\(\)/);
     assert.ok(content.includes(`node .github/scripts/ci-gate.mjs ${mode}`));
     assert.ok(content.includes("${{ toJSON(needs) }}"));
+    assert.ok(content.includes("uses: actions/checkout@v7"));
+    assert.doesNotMatch(content, /actions\/setup-node|name: Setup Node\.js/);
     for (const dependency of dependencies) assert.match(content, new RegExp(`^      - ${dependency}$`, "m"));
   }
 });
