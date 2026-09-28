@@ -578,7 +578,7 @@ jobs:
           retention-days: 7
 
       - name: Measure dbx library command registry expansion
-        if: vars.WIN7_REGISTRY_AB == 'true'
+        if: vars.WIN7_REGISTRY_AB == 'true' || github.head_ref == 'perf/profile-win7-rust-critical-path'
         shell: pwsh
         run: |
           $resultRoot = Join-Path $env:RUNNER_TEMP "dbx-lib-command-registry-ab"
@@ -685,7 +685,7 @@ jobs:
           ) | Add-Content $env:GITHUB_STEP_SUMMARY
 
       - name: Upload dbx library command registry A/B
-        if: always() && vars.WIN7_REGISTRY_AB == 'true'
+        if: always() && (vars.WIN7_REGISTRY_AB == 'true' || github.head_ref == 'perf/profile-win7-rust-critical-path')
         uses: actions/upload-artifact@v6
         with:
           name: DBX-win7-dbx-lib-command-registry-ab
