@@ -1454,6 +1454,12 @@ mod tests {
     }
 }
 
+fn route_external_commands(
+    main_handler: impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static,
+) -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static {
+    dbx_tauri_consul::route(dbx_tauri_mq::route(main_handler))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Metadata/completion command chains nest very large async futures and can
@@ -1804,8 +1810,7 @@ pub fn run() {
                 request_app_close(app, "settings");
             }
         })
-        .invoke_handler(migration_gate::guard_handler(dbx_tauri_consul::route(dbx_tauri_mq::route(
-            tauri::generate_handler![
+        .invoke_handler(migration_gate::guard_handler(route_external_commands(tauri::generate_handler![
             commands::ai::ai_complete,
             commands::ai::ai_stream,
             commands::ai::ai_agent_stream,
@@ -2488,7 +2493,7 @@ pub fn run() {
             commands::tunnel_profiles::load_tunnel_profiles,
             commands::tunnel_profiles::save_tunnel_profiles,
             commands::tunnel_profiles::test_tunnel_profile,
-        ]))))
+        ])))
         .build(tauri::generate_context!())
         .inspect(|app| {
             append_startup_probe(format!("tauri application built after {:?}", startup_begin.elapsed()));
