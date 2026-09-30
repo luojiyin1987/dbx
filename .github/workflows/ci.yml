@@ -1037,6 +1037,8 @@ jobs:
       nix: ${{ steps.filter.outputs.nix }}
       windows_win7_bundle: ${{ steps.filter.outputs.windows_win7_bundle }}
       windows_win7_candidate: ${{ steps.plan.outputs.windows_win7_candidate }}
+      windows_win7_affected_packages: ${{ steps.plan.outputs.windows_win7_affected_packages }}
+      windows_win7_reasons: ${{ steps.plan.outputs.windows_win7_reasons }}
       github_scripts: ${{ steps.filter.outputs.github_scripts }}
       fast: ${{ steps.plan.outputs.fast }}
       rust_matrix: ${{ steps.plan.outputs.rust_matrix }}

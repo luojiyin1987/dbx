@@ -96,8 +96,13 @@ export function planCi({ files, metadata, root, eventName = "pull_request", rust
     || win7InfrastructurePrefixes.some((prefix) => file.startsWith(prefix)));
   const win7DependencyChanged = files.includes("Cargo.toml") || files.includes("Cargo.lock")
     || files.some((file) => /^(?:crates\/[^/]+|src-tauri)\/Cargo\.toml$/.test(file));
-  const windowsWin7Candidate = win7InfrastructureChanged || win7DependencyChanged
-    || win7Affected.has("dbx") || unknownRust;
+  const windowsWin7Reasons = {
+    infrastructure: win7InfrastructureChanged,
+    dependency_input: win7DependencyChanged,
+    desktop_dependency: win7Affected.has("dbx"),
+    unknown_rust: unknownRust,
+  };
+  const windowsWin7Candidate = Object.values(windowsWin7Reasons).some(Boolean);
   const rustMatrix = !rust ? [] : full ? [{ group: "workspace" }] : Object.entries(rustGroups)
     .filter(([, names]) => names.some((name) => affected.has(name)))
     .map(([group]) => ({ group }));
@@ -131,6 +136,8 @@ export function planCi({ files, metadata, root, eventName = "pull_request", rust
     duckdb_changed: nativeChanges.has("duckdb"),
     duckdb_windows: sharedRust || files.some((file) => file.startsWith("agents/drivers/duckdb/")),
     windows_win7_candidate: windowsWin7Candidate,
+    windows_win7_affected_packages: [...win7Affected].sort(),
+    windows_win7_reasons: windowsWin7Reasons,
     fast: rust || agents || ciChanged,
   };
 }
@@ -151,7 +158,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     win7_routing_comparison: {
       current: process.env.WIN7_CURRENT === "true",
       candidate: plan.windows_win7_candidate,
-      affected_packages: plan.affected_packages,
+      affected_packages: plan.windows_win7_affected_packages,
+      reasons: plan.windows_win7_reasons,
     },
   }, null, 2));
 }

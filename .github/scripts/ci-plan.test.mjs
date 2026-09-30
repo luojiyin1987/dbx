@@ -85,6 +85,17 @@ test("Win7 candidate follows the desktop package dependency graph", () => {
   assert.equal(plan(["crates/dbx-cli/src/main.rs"]).windows_win7_candidate, false);
 });
 
+test("old Win7 Rust paths remain candidates through the dependency graph", () => {
+  for (const file of [
+    "src-tauri/src/commands/update.rs",
+    "crates/dbx-core/src/host/update.rs",
+    "crates/dbx-driver-postgres/src/postgres.rs",
+    "crates/dbx-platform/src/lib.rs",
+  ]) {
+    assert.equal(plan([file]).windows_win7_candidate, true, file);
+  }
+});
+
 test("Win7 infrastructure changes remain candidates outside the Cargo graph", () => {
   for (const file of [
     ".github/scripts/assert-win7-pe-compat.ps1",
@@ -123,6 +134,25 @@ test("unrelated CI inputs do not become Win7 candidates through full Rust covera
   const result = plan([".github/scripts/ci-gate.mjs"]);
   assert.equal(result.rust_full, true);
   assert.equal(result.windows_win7_candidate, false);
+});
+
+test("Win7 affected packages stay independent from full Rust coverage", () => {
+  const result = plan([".github/scripts/ci-gate.mjs"]);
+  assert.ok(result.affected_packages.includes("dbx"));
+  assert.deepEqual(result.windows_win7_affected_packages, []);
+});
+
+test("Win7 candidate reports each routing reason", () => {
+  assert.equal(plan([".github/scripts/assert-win7-pe-compat.ps1"]).windows_win7_reasons.infrastructure, true);
+  assert.equal(plan(["Cargo.lock"]).windows_win7_reasons.dependency_input, true);
+  assert.equal(plan(["crates/dbx-core/src/lib.rs"]).windows_win7_reasons.desktop_dependency, true);
+  assert.equal(plan(["crates/new-engine/src/lib.rs"]).windows_win7_reasons.unknown_rust, true);
+  assert.deepEqual(plan(["crates/dbx-cli/src/main.rs"]).windows_win7_reasons, {
+    infrastructure: false,
+    dependency_input: false,
+    desktop_dependency: false,
+    unknown_rust: false,
+  });
 });
 
 test("code generation and test-only dependencies participate in impact analysis", () => {
