@@ -546,6 +546,20 @@ jobs:
         shell: pwsh
         run: ./.github/scripts/ci-win7-sccache-rebuild.ps1
 
+      - name: Capture Win7 sccache key trace
+        if: always()
+        shell: pwsh
+        run: ./.github/scripts/ci-win7-sccache-key-trace.ps1
+
+      - name: Upload Win7 sccache key trace
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: DBX-win7-sccache-key-trace
+          path: ${{ runner.temp }}/win7-sccache-key-trace/
+          if-no-files-found: warn
+          retention-days: 3
+
       - name: Report filtered Win7 sccache backend errors
         if: always()
         continue-on-error: true

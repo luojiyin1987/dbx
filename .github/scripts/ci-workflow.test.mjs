@@ -158,7 +158,12 @@ test("Windows compatibility jobs cache Rust compilation without wrapping C or C+
   assert.ok(win7.includes("name: Rebuild Win7 heavy packages in same job"));
   assert.ok(win7.includes("ci-win7-sccache-rebuild.ps1"));
   assert.ok(win7.indexOf('Label "after DBX build"') < win7.indexOf("name: Rebuild Win7 heavy packages in same job"));
-  assert.ok(win7.indexOf("name: Rebuild Win7 heavy packages in same job") < win7.indexOf("name: Report filtered Win7 sccache backend errors"));
+  assert.ok(win7.includes("name: Capture Win7 sccache key trace"));
+  assert.ok(win7.includes("ci-win7-sccache-key-trace.ps1"));
+  assert.ok(win7.includes('name: DBX-win7-sccache-key-trace'));
+  assert.ok(win7.includes('path: ${{ runner.temp }}/win7-sccache-key-trace/'));
+  assert.ok(win7.indexOf("name: Rebuild Win7 heavy packages in same job") < win7.indexOf("name: Capture Win7 sccache key trace"));
+  assert.ok(win7.indexOf("name: Capture Win7 sccache key trace") < win7.indexOf("name: Report filtered Win7 sccache backend errors"));
   assert.ok(win7.includes("--timings"));
   assert.ok(win7.includes("name: DBX-win7-cargo-timings"));
   assert.ok(win7.includes("path: target/cargo-timings/"));
@@ -209,6 +214,17 @@ test("the Win7 heavy package rebuild reports same-job sccache deltas", () => {
   for (const delta of ["Hits", "Misses", "Writes", "WriteErrors"]) assert.ok(rebuild.includes(`$after.${delta} - $before.${delta}`));
   assert.ok(rebuild.includes("[WIN7-SCCACHE-REBUILD]"));
   assert.doesNotMatch(rebuild, /SCCACHE_GHA_VERSION|SCCACHE_GHA_ENABLED/);
+});
+
+test("the Win7 key trace records comparable cache inputs without changing cache settings", () => {
+  const trace = readFileSync(new URL("./ci-win7-sccache-key-trace.ps1", import.meta.url), "utf8");
+  for (const event of ["get_cached_or_compile", "Hash key", "Cache hit", "Cache miss"]) assert.ok(trace.includes(event));
+  for (const crateName of ["dbx_core", "dbx_mcp", "dbx_lib", "dbx_drivers"]) assert.ok(trace.includes(`\"${crateName}\"`));
+  assert.ok(trace.includes("<workspace>"));
+  assert.ok(trace.includes("<runner-temp>"));
+  assert.ok(trace.includes("ConvertTo-Json -Depth 8"));
+  assert.ok(trace.includes("win7-sccache-key-trace.json"));
+  assert.doesNotMatch(trace, /SCCACHE_GHA_VERSION|SCCACHE_GHA_ENABLED/);
 });
 
 test("the planner uses the exact event base and preserves a single workflow cancellation scope", () => {
