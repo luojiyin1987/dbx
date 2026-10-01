@@ -157,6 +157,7 @@ test("Windows compatibility jobs cache Rust compilation without wrapping C or C+
   assert.ok(win7.indexOf("name: Build DBX for Windows 7") < win7.indexOf('Label "after DBX build"'));
   assert.ok(win7.includes("name: Rebuild Win7 heavy packages in same job"));
   assert.ok(win7.includes("ci-win7-sccache-rebuild.ps1"));
+  assert.ok(win7.includes("--config .github/fixtures/win7-host-repro-config.toml"));
   assert.ok(win7.indexOf('Label "after DBX build"') < win7.indexOf("name: Rebuild Win7 heavy packages in same job"));
   assert.ok(win7.includes("name: Capture Win7 sccache key trace"));
   assert.ok(win7.includes("ci-win7-sccache-key-trace.ps1"));
@@ -207,10 +208,15 @@ test("the Win7 retention probe reports each compile without changing cache setti
 
 test("the Win7 heavy package rebuild reports same-job sccache deltas", () => {
   const rebuild = readFileSync(new URL("./ci-win7-sccache-rebuild.ps1", import.meta.url), "utf8");
+  const hostConfig = readFileSync(new URL("../fixtures/win7-host-repro-config.toml", import.meta.url), "utf8");
   assert.ok(rebuild.includes("sccache --show-stats --stats-format json"));
   for (const packageName of ["dbx-core", "dbx-mcp", "dbx"]) assert.ok(rebuild.includes(`--package ${packageName}`));
   assert.ok(rebuild.includes("cargo clean"));
-  assert.ok(rebuild.includes("cargo build --locked --package dbx --release --features custom-protocol --target x86_64-win7-windows-msvc -Z build-std=std,panic_abort --timings"));
+  for (const flag of ["-Z host-config", "-Z target-applies-to-host", "-Z build-std=std,panic_abort"]) assert.ok(rebuild.includes(flag));
+  assert.ok(rebuild.includes("--config .github/fixtures/win7-host-repro-config.toml"));
+  assert.ok(hostConfig.includes("target-applies-to-host = false"));
+  assert.ok(hostConfig.includes('[host.x86_64-pc-windows-msvc]'));
+  assert.ok(hostConfig.includes('rustflags = ["-Clink-arg=/Brepro"]'));
   for (const delta of ["Hits", "Misses", "Writes", "WriteErrors"]) assert.ok(rebuild.includes(`$after.${delta} - $before.${delta}`));
   assert.ok(rebuild.includes("[WIN7-SCCACHE-REBUILD]"));
   assert.doesNotMatch(rebuild, /SCCACHE_GHA_VERSION|SCCACHE_GHA_ENABLED/);

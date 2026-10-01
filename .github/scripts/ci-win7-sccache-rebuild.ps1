@@ -37,7 +37,10 @@ if ($LASTEXITCODE -ne 0) {
 
 $env:TAURI_CONFIG = Get-Content src-tauri/tauri.webview2-win7-fixed.conf.json -Raw
 $timer = [System.Diagnostics.Stopwatch]::StartNew()
-cargo build --locked --package dbx --release --features custom-protocol --target x86_64-win7-windows-msvc -Z build-std=std,panic_abort --timings
+cargo -Z host-config -Z target-applies-to-host -Z build-std=std,panic_abort `
+  --config .github/fixtures/win7-host-repro-config.toml `
+  build --locked --package dbx --release --features custom-protocol `
+  --target x86_64-win7-windows-msvc --timings
 $timer.Stop()
 if ($LASTEXITCODE -ne 0) {
   throw "The same-job Win7 rebuild failed."
