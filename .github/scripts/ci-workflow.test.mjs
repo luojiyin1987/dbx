@@ -147,24 +147,12 @@ test("Windows compatibility jobs cache Rust compilation without wrapping C or C+
   assert.ok(win7.includes("fc920bf0ec8de6ee65d409111f7ec508035751ba"));
   assert.ok(win7.includes('version: "v0.16.0"'));
   assert.ok(win7.includes("sccache --show-stats"));
-  for (const setting of ["SCCACHE_ERROR_LOG=$logPath", "SCCACHE_LOG: debug", 'SCCACHE_LOG_MILLIS: "1"']) assert.ok(win7.includes(setting));
-  assert.ok(win7.indexOf("name: Configure Win7 sccache diagnostics") < win7.indexOf("mozilla-actions/sccache-action"));
-  for (const observation of ['-Label "before build #1" -ResetStats', '-Label "before build #2"', '-Label "after DBX build"']) assert.ok(win7.includes(observation));
-  assert.ok(win7.includes("ci-win7-sccache-probe.ps1"));
-  assert.ok(win7.includes('Pattern "429|Too Many Requests|rate.?limit|cache.*write|ghac"'));
-  assert.ok(win7.includes("Select-Object -First 50"));
-  assert.ok(win7.indexOf('Label "before build #2"') < win7.indexOf("name: Build DBX for Windows 7"));
-  assert.ok(win7.indexOf("name: Build DBX for Windows 7") < win7.indexOf('Label "after DBX build"'));
-  assert.ok(win7.includes("name: Rebuild Win7 heavy packages in same job"));
-  assert.ok(win7.includes("ci-win7-sccache-rebuild.ps1"));
+  for (const flag of ["-Z host-config", "-Z target-applies-to-host", "-Z build-std=std,panic_abort"]) assert.ok(win7.includes(flag));
   assert.ok(win7.includes("--config .github/fixtures/win7-host-repro-config.toml"));
-  assert.ok(win7.indexOf('Label "after DBX build"') < win7.indexOf("name: Rebuild Win7 heavy packages in same job"));
-  assert.ok(win7.includes("name: Capture Win7 sccache key trace"));
-  assert.ok(win7.includes("ci-win7-sccache-key-trace.ps1"));
-  assert.ok(win7.includes('name: DBX-win7-sccache-key-trace'));
-  assert.ok(win7.includes('path: ${{ runner.temp }}/win7-sccache-key-trace/'));
-  assert.ok(win7.indexOf("name: Rebuild Win7 heavy packages in same job") < win7.indexOf("name: Capture Win7 sccache key trace"));
-  assert.ok(win7.indexOf("name: Capture Win7 sccache key trace") < win7.indexOf("name: Report filtered Win7 sccache backend errors"));
+  const hostConfig = readFileSync(new URL("../fixtures/win7-host-repro-config.toml", import.meta.url), "utf8");
+  assert.ok(hostConfig.includes("target-applies-to-host = false"));
+  assert.ok(hostConfig.includes('[host.x86_64-pc-windows-msvc]'));
+  assert.ok(hostConfig.includes('rustflags = ["-Clink-arg=/Brepro"]'));
   assert.ok(win7.includes("--timings"));
   assert.ok(win7.includes("name: DBX-win7-cargo-timings"));
   assert.ok(win7.includes("path: target/cargo-timings/"));
@@ -192,51 +180,6 @@ test("Win7 TLS cache keys ignore the workspace lockfile", () => {
   assert.ok(win7.includes("hashFiles('.github/fixtures/win7-aws-lc-cache/Cargo.toml', '.github/fixtures/win7-aws-lc-cache/Cargo.lock')"));
   assert.ok(win7.includes("hashFiles('.github/fixtures/win7-openssl-cache/Cargo.toml', '.github/fixtures/win7-openssl-cache/Cargo.lock')"));
   assert.doesNotMatch(win7, /key: win7-(?:aws-lc|openssl).*hashFiles\('Cargo\.lock'/);
-});
-
-test("the Win7 retention probe reports each compile without changing cache settings", () => {
-  const probe = readFileSync(new URL("./ci-win7-sccache-probe.ps1", import.meta.url), "utf8");
-  assert.ok(probe.includes("sccache --zero-stats"));
-  assert.ok(probe.includes("sccache --show-stats --stats-format json"));
-  for (const argument of ["--crate-name=dbx_sccache_retention_probe", "--crate-type=rlib", "--edition=2021", "--emit=link", "--out-dir=$outputDir"]) assert.ok(probe.includes(argument));
-  assert.ok(probe.includes(".sccache-win7-retention-probe.rs"));
-  assert.ok(probe.includes('Join-Path $env:RUNNER_TEMP "sccache-win7-retention-probe"'));
-  assert.ok(probe.includes("$after.Hits - $before.Hits"));
-  assert.ok(probe.includes("[WIN7-SCCACHE-PROBE]"));
-  assert.doesNotMatch(probe, /SCCACHE_GHA_VERSION|SCCACHE_GHA_ENABLED/);
-});
-
-test("the Win7 heavy package rebuild reports same-job sccache deltas", () => {
-  const rebuild = readFileSync(new URL("./ci-win7-sccache-rebuild.ps1", import.meta.url), "utf8");
-  const hostConfig = readFileSync(new URL("../fixtures/win7-host-repro-config.toml", import.meta.url), "utf8");
-  assert.ok(rebuild.includes("sccache --show-stats --stats-format json"));
-  for (const packageName of ["dbx-core", "dbx-mcp", "dbx"]) assert.ok(rebuild.includes(`--package ${packageName}`));
-  assert.ok(rebuild.includes("cargo clean"));
-  for (const flag of ["-Z host-config", "-Z target-applies-to-host", "-Z build-std=std,panic_abort"]) assert.ok(rebuild.includes(flag));
-  assert.ok(rebuild.includes("--config .github/fixtures/win7-host-repro-config.toml"));
-  assert.ok(hostConfig.includes("target-applies-to-host = false"));
-  assert.ok(hostConfig.includes('[host.x86_64-pc-windows-msvc]'));
-  assert.ok(hostConfig.includes('rustflags = ["-Clink-arg=/Brepro"]'));
-  for (const delta of ["Hits", "Misses", "Writes", "WriteErrors"]) assert.ok(rebuild.includes(`$after.${delta} - $before.${delta}`));
-  assert.ok(rebuild.includes("[WIN7-SCCACHE-REBUILD]"));
-  assert.doesNotMatch(rebuild, /SCCACHE_GHA_VERSION|SCCACHE_GHA_ENABLED/);
-});
-
-test("the Win7 key trace records comparable cache inputs without changing cache settings", () => {
-  const trace = readFileSync(new URL("./ci-win7-sccache-key-trace.ps1", import.meta.url), "utf8");
-  for (const event of ["get_cached_or_compile", "Hash key", "Cache hit", "Cache miss"]) assert.ok(trace.includes(event));
-  for (const crateName of ["dbx_core", "dbx_mcp", "dbx_lib", "dbx_drivers"]) assert.ok(trace.includes(`\"${crateName}\"`));
-  assert.ok(trace.includes("<workspace>"));
-  assert.ok(trace.includes("<runner-temp>"));
-  assert.ok(trace.includes("[char] 27"));
-  assert.ok(trace.includes("$plainLine"));
-  assert.ok(trace.includes("ConvertTo-Json -Depth 8"));
-  assert.ok(trace.includes("ConvertFrom-Json"));
-  assert.ok(trace.includes("Get-FileHash -LiteralPath $Path -Algorithm SHA256"));
-  for (const input of ["--extern", ".dll", ".rlib", ".rmeta", "rustc --print sysroot"]) assert.ok(trace.includes(input));
-  for (const field of ["miss_extern_inputs", "miss_output_files", "compiler_files", "job_environment"]) assert.ok(trace.includes(field));
-  assert.ok(trace.includes("win7-sccache-key-trace.json"));
-  assert.doesNotMatch(trace, /SCCACHE_GHA_VERSION|SCCACHE_GHA_ENABLED/);
 });
 
 test("the planner uses the exact event base and preserves a single workflow cancellation scope", () => {
