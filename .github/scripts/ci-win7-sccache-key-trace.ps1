@@ -181,7 +181,7 @@ foreach ($argumentEntry in $allArguments.Values) {
       $externPath = Join-Path $env:GITHUB_WORKSPACE $externPath
     }
     $extension = [System.IO.Path]::GetExtension($externPath)
-    if ($extension -notin @(".rlib", ".rmeta") -or !(Test-Path -LiteralPath $externPath -PathType Leaf)) {
+    if ($extension -notin @(".dll", ".rlib", ".rmeta") -or !(Test-Path -LiteralPath $externPath -PathType Leaf)) {
       continue
     }
 
@@ -200,7 +200,7 @@ foreach ($argumentEntry in $allArguments.Values) {
 $outputFiles = @{}
 $targetRoot = Join-Path $env:GITHUB_WORKSPACE "target"
 if (Test-Path -LiteralPath $targetRoot -PathType Container) {
-  foreach ($item in Get-ChildItem -LiteralPath $targetRoot -Recurse -File -Include "*.rlib", "*.rmeta") {
+  foreach ($item in Get-ChildItem -LiteralPath $targetRoot -Recurse -File -Include "*.dll", "*.rlib", "*.rmeta") {
     $stem = $item.BaseName
     if ($stem.StartsWith("lib")) {
       $stem = $stem.Substring(3)

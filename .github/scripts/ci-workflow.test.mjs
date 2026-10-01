@@ -227,7 +227,7 @@ test("the Win7 key trace records comparable cache inputs without changing cache 
   assert.ok(trace.includes("ConvertTo-Json -Depth 8"));
   assert.ok(trace.includes("ConvertFrom-Json"));
   assert.ok(trace.includes("Get-FileHash -LiteralPath $Path -Algorithm SHA256"));
-  for (const input of ["--extern", ".rlib", ".rmeta", "rustc --print sysroot"]) assert.ok(trace.includes(input));
+  for (const input of ["--extern", ".dll", ".rlib", ".rmeta", "rustc --print sysroot"]) assert.ok(trace.includes(input));
   for (const field of ["miss_extern_inputs", "miss_output_files", "compiler_files", "job_environment"]) assert.ok(trace.includes(field));
   assert.ok(trace.includes("win7-sccache-key-trace.json"));
   assert.doesNotMatch(trace, /SCCACHE_GHA_VERSION|SCCACHE_GHA_ENABLED/);
