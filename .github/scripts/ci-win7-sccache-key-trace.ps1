@@ -47,9 +47,13 @@ function Get-TextHash([string] $text) {
 $keys = @{}
 $results = @{}
 $arguments = @{}
+$escape = [char] 27
+$ansiPattern = [regex]::Escape([string] $escape) + '\[[0-9;]*[A-Za-z]'
 
 foreach ($line in Get-Content -LiteralPath $env:SCCACHE_ERROR_LOG) {
-  if ($line -match '\[(?<crate>[^\]]+)\]: Hash key: (?<key>[0-9a-f]+)') {
+  $plainLine = $line -replace $ansiPattern, ""
+
+  if ($plainLine -match '\[(?<crate>[^\]]+)\]: Hash key: (?<key>[0-9a-f]+)') {
     $crateName = $Matches.crate
     if (!$keys.ContainsKey($crateName)) {
       $keys[$crateName] = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
@@ -58,7 +62,7 @@ foreach ($line in Get-Content -LiteralPath $env:SCCACHE_ERROR_LOG) {
     continue
   }
 
-  if ($line -match '\[(?<crate>[^\]]+)\]: Cache hit in') {
+  if ($plainLine -match '\[(?<crate>[^\]]+)\]: Cache hit in') {
     $crateName = $Matches.crate
     if (!$results.ContainsKey($crateName)) {
       $results[$crateName] = @{ hits = 0; misses = 0 }
@@ -67,7 +71,7 @@ foreach ($line in Get-Content -LiteralPath $env:SCCACHE_ERROR_LOG) {
     continue
   }
 
-  if ($line -match '\[(?<crate>[^\]]+)\]: Cache miss in') {
+  if ($plainLine -match '\[(?<crate>[^\]]+)\]: Cache miss in') {
     $crateName = $Matches.crate
     if (!$results.ContainsKey($crateName)) {
       $results[$crateName] = @{ hits = 0; misses = 0 }
@@ -76,7 +80,7 @@ foreach ($line in Get-Content -LiteralPath $env:SCCACHE_ERROR_LOG) {
     continue
   }
 
-  if ($line -match '\[(?<crate>[^\]]+)\]: get_cached_or_compile: (?<arguments>.+)$') {
+  if ($plainLine -match '\[(?<crate>[^\]]+)\]: get_cached_or_compile: (?<arguments>.+)$') {
     $crateName = $Matches.crate
     if (!$argumentCrates.Contains($crateName)) {
       continue

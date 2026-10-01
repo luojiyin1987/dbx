@@ -222,6 +222,8 @@ test("the Win7 key trace records comparable cache inputs without changing cache 
   for (const crateName of ["dbx_core", "dbx_mcp", "dbx_lib", "dbx_drivers"]) assert.ok(trace.includes(`\"${crateName}\"`));
   assert.ok(trace.includes("<workspace>"));
   assert.ok(trace.includes("<runner-temp>"));
+  assert.ok(trace.includes("[char] 27"));
+  assert.ok(trace.includes("$plainLine"));
   assert.ok(trace.includes("ConvertTo-Json -Depth 8"));
   assert.ok(trace.includes("win7-sccache-key-trace.json"));
   assert.doesNotMatch(trace, /SCCACHE_GHA_VERSION|SCCACHE_GHA_ENABLED/);
