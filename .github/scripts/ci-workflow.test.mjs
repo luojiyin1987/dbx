@@ -147,6 +147,14 @@ test("Windows compatibility jobs cache Rust compilation without wrapping C or C+
   assert.ok(win7.includes("fc920bf0ec8de6ee65d409111f7ec508035751ba"));
   assert.ok(win7.includes('version: "v0.16.0"'));
   assert.ok(win7.includes("sccache --show-stats"));
+  for (const setting of ["SCCACHE_ERROR_LOG=$logPath", "SCCACHE_LOG: debug", 'SCCACHE_LOG_MILLIS: "1"']) assert.ok(win7.includes(setting));
+  assert.ok(win7.indexOf("name: Configure Win7 sccache diagnostics") < win7.indexOf("mozilla-actions/sccache-action"));
+  for (const observation of ['-Label "before build #1" -ResetStats', '-Label "before build #2"', '-Label "after DBX build"']) assert.ok(win7.includes(observation));
+  assert.ok(win7.includes("ci-win7-sccache-probe.ps1"));
+  assert.ok(win7.includes('Pattern "429|Too Many Requests|rate.?limit|cache.*write|ghac"'));
+  assert.ok(win7.includes("Select-Object -First 50"));
+  assert.ok(win7.indexOf('Label "before build #2"') < win7.indexOf("name: Build DBX for Windows 7"));
+  assert.ok(win7.indexOf("name: Build DBX for Windows 7") < win7.indexOf('Label "after DBX build"'));
   assert.ok(win7.includes("--timings"));
   assert.ok(win7.includes("name: DBX-win7-cargo-timings"));
   assert.ok(win7.includes("path: target/cargo-timings/"));
@@ -174,6 +182,18 @@ test("Win7 TLS cache keys ignore the workspace lockfile", () => {
   assert.ok(win7.includes("hashFiles('.github/fixtures/win7-aws-lc-cache/Cargo.toml', '.github/fixtures/win7-aws-lc-cache/Cargo.lock')"));
   assert.ok(win7.includes("hashFiles('.github/fixtures/win7-openssl-cache/Cargo.toml', '.github/fixtures/win7-openssl-cache/Cargo.lock')"));
   assert.doesNotMatch(win7, /key: win7-(?:aws-lc|openssl).*hashFiles\('Cargo\.lock'/);
+});
+
+test("the Win7 retention probe reports each compile without changing cache settings", () => {
+  const probe = readFileSync(new URL("./ci-win7-sccache-probe.ps1", import.meta.url), "utf8");
+  assert.ok(probe.includes("sccache --zero-stats"));
+  assert.ok(probe.includes("sccache --show-stats --stats-format json"));
+  assert.ok(probe.includes("--crate-type rlib"));
+  assert.ok(probe.includes(".sccache-win7-retention-probe.rs"));
+  assert.ok(probe.includes('Join-Path $env:RUNNER_TEMP "sccache-win7-retention-probe"'));
+  assert.ok(probe.includes("$after.Hits - $before.Hits"));
+  assert.ok(probe.includes("[WIN7-SCCACHE-PROBE]"));
+  assert.doesNotMatch(probe, /SCCACHE_GHA_VERSION|SCCACHE_GHA_ENABLED/);
 });
 
 test("the planner uses the exact event base and preserves a single workflow cancellation scope", () => {
