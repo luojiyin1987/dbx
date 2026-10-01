@@ -155,6 +155,10 @@ test("Windows compatibility jobs cache Rust compilation without wrapping C or C+
   assert.ok(win7.includes("Select-Object -First 50"));
   assert.ok(win7.indexOf('Label "before build #2"') < win7.indexOf("name: Build DBX for Windows 7"));
   assert.ok(win7.indexOf("name: Build DBX for Windows 7") < win7.indexOf('Label "after DBX build"'));
+  assert.ok(win7.includes("name: Rebuild Win7 heavy packages in same job"));
+  assert.ok(win7.includes("ci-win7-sccache-rebuild.ps1"));
+  assert.ok(win7.indexOf('Label "after DBX build"') < win7.indexOf("name: Rebuild Win7 heavy packages in same job"));
+  assert.ok(win7.indexOf("name: Rebuild Win7 heavy packages in same job") < win7.indexOf("name: Report filtered Win7 sccache backend errors"));
   assert.ok(win7.includes("--timings"));
   assert.ok(win7.includes("name: DBX-win7-cargo-timings"));
   assert.ok(win7.includes("path: target/cargo-timings/"));
@@ -194,6 +198,17 @@ test("the Win7 retention probe reports each compile without changing cache setti
   assert.ok(probe.includes("$after.Hits - $before.Hits"));
   assert.ok(probe.includes("[WIN7-SCCACHE-PROBE]"));
   assert.doesNotMatch(probe, /SCCACHE_GHA_VERSION|SCCACHE_GHA_ENABLED/);
+});
+
+test("the Win7 heavy package rebuild reports same-job sccache deltas", () => {
+  const rebuild = readFileSync(new URL("./ci-win7-sccache-rebuild.ps1", import.meta.url), "utf8");
+  assert.ok(rebuild.includes("sccache --show-stats --stats-format json"));
+  for (const packageName of ["dbx-core", "dbx-mcp", "dbx"]) assert.ok(rebuild.includes(`--package ${packageName}`));
+  assert.ok(rebuild.includes("cargo clean"));
+  assert.ok(rebuild.includes("cargo build --locked --package dbx --release --features custom-protocol --target x86_64-win7-windows-msvc -Z build-std=std,panic_abort --timings"));
+  for (const delta of ["Hits", "Misses", "Writes", "WriteErrors"]) assert.ok(rebuild.includes(`$after.${delta} - $before.${delta}`));
+  assert.ok(rebuild.includes("[WIN7-SCCACHE-REBUILD]"));
+  assert.doesNotMatch(rebuild, /SCCACHE_GHA_VERSION|SCCACHE_GHA_ENABLED/);
 });
 
 test("the planner uses the exact event base and preserves a single workflow cancellation scope", () => {

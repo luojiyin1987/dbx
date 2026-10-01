@@ -542,6 +542,10 @@ jobs:
         shell: pwsh
         run: ./.github/scripts/ci-win7-sccache-probe.ps1 -Label "after DBX build"
 
+      - name: Rebuild Win7 heavy packages in same job
+        shell: pwsh
+        run: ./.github/scripts/ci-win7-sccache-rebuild.ps1
+
       - name: Report filtered Win7 sccache backend errors
         if: always()
         continue-on-error: true
