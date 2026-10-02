@@ -562,10 +562,8 @@ jobs:
           }
           $seconds = [math]::Round($timer.Elapsed.TotalSeconds, 2)
           Write-Host "[WIN7-NSIS-AB] compression=zlib seconds=$seconds bytes=$($installer.Length)"
-          "## Windows 7 NSIS compression" >> $env:GITHUB_STEP_SUMMARY
-          "| Compression | Bundle seconds | Installer bytes |" >> $env:GITHUB_STEP_SUMMARY
-          "| --- | ---: | ---: |" >> $env:GITHUB_STEP_SUMMARY
-          "| zlib | $seconds | $($installer.Length) |" >> $env:GITHUB_STEP_SUMMARY
+          "WIN7_NSIS_ZLIB_SECONDS=$seconds" >> $env:GITHUB_ENV
+          "WIN7_NSIS_ZLIB_BYTES=$($installer.Length)" >> $env:GITHUB_ENV
           ./.github/scripts/assert-win7-installer-content.ps1 -InstallerPath $installer.FullName
           $diagnosticDir = Join-Path $env:RUNNER_TEMP "win7-nsis-zlib"
           New-Item -ItemType Directory -Force -Path $diagnosticDir | Out-Null
@@ -591,6 +589,10 @@ jobs:
           }
           $seconds = [math]::Round($timer.Elapsed.TotalSeconds, 2)
           Write-Host "[WIN7-NSIS-AB] compression=lzma seconds=$seconds bytes=$($installer.Length)"
+          "## Windows 7 NSIS compression" >> $env:GITHUB_STEP_SUMMARY
+          "| Compression | Bundle seconds | Installer bytes |" >> $env:GITHUB_STEP_SUMMARY
+          "| --- | ---: | ---: |" >> $env:GITHUB_STEP_SUMMARY
+          "| zlib | $env:WIN7_NSIS_ZLIB_SECONDS | $env:WIN7_NSIS_ZLIB_BYTES |" >> $env:GITHUB_STEP_SUMMARY
           "| lzma | $seconds | $($installer.Length) |" >> $env:GITHUB_STEP_SUMMARY
           Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256
 
