@@ -541,11 +541,47 @@ jobs:
         shell: pwsh
         run: ./.github/scripts/assert-webview2-win7-loader.ps1 -BinaryPath target/x86_64-win7-windows-msvc/release/dbx.exe
 
+      - name: Measure Windows 7 NSIS zlib compression
+        shell: pwsh
+        run: |
+          $bundleDir = "target/x86_64-win7-windows-msvc/release/bundle/nsis"
+          $timer = [System.Diagnostics.Stopwatch]::StartNew()
+          pnpm tauri bundle --bundles nsis --target x86_64-win7-windows-msvc `
+            --config src-tauri/tauri.webview2-win7-fixed.conf.json `
+            --config '{"bundle":{"windows":{"nsis":{"compression":"zlib"}}}}'
+          $exitCode = $LASTEXITCODE
+          $timer.Stop()
+          if ($exitCode -ne 0) {
+            throw "Windows 7 zlib bundle failed with exit code $exitCode."
+          }
+          $installer = Get-ChildItem $bundleDir -Filter "*.exe" |
+            Sort-Object LastWriteTimeUtc -Descending |
+            Select-Object -First 1
+          if (!$installer) {
+            throw "Missing Windows 7 zlib installer in ${bundleDir}."
+          }
+          $seconds = [math]::Round($timer.Elapsed.TotalSeconds, 2)
+          Write-Host "[WIN7-NSIS-AB] compression=zlib seconds=$seconds bytes=$($installer.Length)"
+          "## Windows 7 NSIS compression" >> $env:GITHUB_STEP_SUMMARY
+          "| Compression | Bundle seconds | Installer bytes |" >> $env:GITHUB_STEP_SUMMARY
+          "| --- | ---: | ---: |" >> $env:GITHUB_STEP_SUMMARY
+          "| zlib | $seconds | $($installer.Length) |" >> $env:GITHUB_STEP_SUMMARY
+          ./.github/scripts/assert-win7-installer-content.ps1 -InstallerPath $installer.FullName
+          $diagnosticDir = Join-Path $env:RUNNER_TEMP "win7-nsis-zlib"
+          New-Item -ItemType Directory -Force -Path $diagnosticDir | Out-Null
+          Move-Item -LiteralPath $installer.FullName -Destination $diagnosticDir
+
       - name: Bundle Windows 7 fixed-runtime installer
         shell: pwsh
         run: |
           $bundleDir = "target/x86_64-win7-windows-msvc/release/bundle/nsis"
+          $timer = [System.Diagnostics.Stopwatch]::StartNew()
           pnpm tauri bundle --bundles nsis --target x86_64-win7-windows-msvc --config src-tauri/tauri.webview2-win7-fixed.conf.json
+          $exitCode = $LASTEXITCODE
+          $timer.Stop()
+          if ($exitCode -ne 0) {
+            throw "Windows 7 lzma bundle failed with exit code $exitCode."
+          }
           $installer = Get-ChildItem $bundleDir -Filter "*.exe" |
             Sort-Object LastWriteTimeUtc -Descending |
             Select-Object -First 1
@@ -553,6 +589,9 @@ jobs:
             Write-Error "Missing Windows 7 fixed-runtime installer in ${bundleDir}"
             exit 1
           }
+          $seconds = [math]::Round($timer.Elapsed.TotalSeconds, 2)
+          Write-Host "[WIN7-NSIS-AB] compression=lzma seconds=$seconds bytes=$($installer.Length)"
+          "| lzma | $seconds | $($installer.Length) |" >> $env:GITHUB_STEP_SUMMARY
           Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256
 
       - name: Audit Windows 7 installer contents
