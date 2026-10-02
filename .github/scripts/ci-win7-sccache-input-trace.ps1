@@ -65,6 +65,9 @@ $targetCrates = [System.Collections.Generic.HashSet[string]]::new(
 
 function ConvertTo-NormalizedPath([string] $Path) {
   $normalized = [System.IO.Path]::GetFullPath($Path)
+  if ($normalized.StartsWith("\\?\", [System.StringComparison]::Ordinal)) {
+    $normalized = $normalized.Substring(4)
+  }
   foreach ($replacement in @(
     @($env:GITHUB_WORKSPACE, "<workspace>"),
     @($env:RUNNER_TEMP, "<runner-temp>"),
@@ -219,14 +222,14 @@ $staticLibraries = @{}
 foreach ($argumentEntry in $argumentsByCrate.Values) {
   $crateName = $argumentEntry.crate
   $arguments = $argumentEntry.values
-  $outputDirectory = Get-ArgumentValue $arguments "--out-dir"
+  $compilerOutputDirectory = Get-ArgumentValue $arguments "--out-dir"
   $compilerCrateName = Get-ArgumentValue $arguments "--crate-name"
   $extraFilename = Get-CodegenValue $arguments "extra-filename"
   if ($null -eq $extraFilename) {
     $extraFilename = ""
   }
-  if (![string]::IsNullOrEmpty($outputDirectory) -and ![string]::IsNullOrEmpty($compilerCrateName)) {
-    $depInfoPath = Join-Path (Resolve-InputPath $outputDirectory) "$compilerCrateName$extraFilename.d"
+  if (![string]::IsNullOrEmpty($compilerOutputDirectory) -and ![string]::IsNullOrEmpty($compilerCrateName)) {
+    $depInfoPath = Join-Path (Resolve-InputPath $compilerOutputDirectory) "$compilerCrateName$extraFilename.d"
     if (Test-Path -LiteralPath $depInfoPath -PathType Leaf) {
       $depInfo = @(Get-Content -LiteralPath $depInfoPath)
       if ($depInfo.Count -gt 0) {
@@ -279,6 +282,23 @@ foreach ($argumentEntry in $argumentsByCrate.Values) {
         }
         break
       }
+    }
+  }
+}
+
+# psm always builds psm_s in its Cargo build output. Keep this focused fallback
+# because Cargo can omit native link flags from the logged rustc argument form.
+$psmBuildRoot = Join-Path $env:GITHUB_WORKSPACE "target/x86_64-win7-windows-msvc/release/build"
+if (Test-Path -LiteralPath $psmBuildRoot -PathType Container) {
+  foreach ($libraryPath in Get-ChildItem -LiteralPath $psmBuildRoot -Recurse -File -Include "psm_s.lib", "libpsm_s.a", "psm_s.a") {
+    if ($libraryPath.FullName -notmatch '[\\/]psm-[^\\/]+[\\/]out[\\/]') {
+      continue
+    }
+    $normalizedLibrary = ConvertTo-NormalizedPath $libraryPath.FullName
+    $staticLibraries["psm`0$normalizedLibrary"] = [pscustomobject]@{
+      crate = "psm"
+      path = $normalizedLibrary
+      sha256 = (Get-FileHash -LiteralPath $libraryPath.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
     }
   }
 }

@@ -26,4 +26,6 @@ test("Win7 input tracing records each remaining key input class", () => {
   for (const marker of ["source=$($entry.path) sha256=", "env_dep=", "cargo_env=", "staticlib=$($entry.path) sha256="]) {
     assert.ok(trace.includes(marker));
   }
+  assert.ok(trace.includes('$compilerOutputDirectory = Get-ArgumentValue $arguments "--out-dir"'));
+  assert.ok(trace.includes('"psm_s.lib", "libpsm_s.a", "psm_s.a"'));
 });

@@ -152,6 +152,7 @@ test("Windows compatibility jobs cache Rust compilation without wrapping C or C+
   assert.ok(win7.includes("ci-win7-sccache-input-trace.ps1"));
   assert.ok(win7.includes("name: DBX-win7-sccache-input-trace"));
   assert.ok(win7.includes('path: ${{ runner.temp }}/win7-sccache-input-trace/'));
+  assert.match(win7, /name: DBX-win7-sccache-input-trace[\s\S]*?if-no-files-found: error/);
   assert.ok(win7.indexOf("name: Configure Win7 sccache debug log") < win7.indexOf("mozilla-actions/sccache-action"));
   assert.ok(win7.indexOf("name: Configure focused Win7 sccache input trace") < win7.indexOf("name: Build DBX for Windows 7"));
   assert.ok(win7.indexOf("name: Build DBX for Windows 7") < win7.indexOf("name: Capture focused Win7 sccache inputs"));
