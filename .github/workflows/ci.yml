@@ -548,7 +548,7 @@ jobs:
           $timer = [System.Diagnostics.Stopwatch]::StartNew()
           pnpm tauri bundle --bundles nsis --target x86_64-win7-windows-msvc `
             --config src-tauri/tauri.webview2-win7-fixed.conf.json `
-            --config '{"bundle":{"windows":{"nsis":{"compression":"zlib"}}}}'
+            --config .github/fixtures/win7-nsis-zlib-config.json
           $exitCode = $LASTEXITCODE
           $timer.Stop()
           if ($exitCode -ne 0) {
