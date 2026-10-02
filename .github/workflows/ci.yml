@@ -318,6 +318,7 @@ jobs:
       SCCACHE_GHA_ENABLED: "true"
       SCCACHE_GHA_VERSION: win7-webview2-1.0.902.49-v1
       SCCACHE_IDLE_TIMEOUT: "0"
+      SCCACHE_LOG: debug
       # Single source for the job's nightly pin: the toolchain step and the
       # prebuilt AWS-LC cache key must move together.
       WIN7_NIGHTLY_TOOLCHAIN: nightly-2026-07-22
@@ -344,9 +345,29 @@ jobs:
           toolchain: ${{ env.WIN7_NIGHTLY_TOOLCHAIN }}
           components: rust-src
 
+      - name: Configure Win7 sccache debug log
+        shell: pwsh
+        run: |
+          $logPath = Join-Path $env:RUNNER_TEMP "sccache-win7-input-debug.log"
+          "SCCACHE_ERROR_LOG=$logPath" >> $env:GITHUB_ENV
+
       - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
         with:
           version: "v0.16.0"
+
+      - name: Configure focused Win7 sccache input trace
+        shell: pwsh
+        run: |
+          $wrapperPath = Join-Path $env:RUNNER_TEMP "ci-win7-sccache-input-wrapper.exe"
+          $environmentDirectory = Join-Path $env:RUNNER_TEMP "win7-sccache-input-env"
+          rustc --edition=2021 .github/scripts/ci-win7-sccache-input-wrapper.rs -o $wrapperPath
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+          "DBX_SCCACHE_INPUT_ENV_DIR=$environmentDirectory" >> $env:GITHUB_ENV
+          "DBX_SCCACHE_INPUT_SCRIPT=$env:GITHUB_WORKSPACE/.github/scripts/ci-win7-sccache-input-trace.ps1" >> $env:GITHUB_ENV
+          "DBX_SCCACHE_REAL_WRAPPER=sccache" >> $env:GITHUB_ENV
+          "RUSTC_WRAPPER=$wrapperPath" >> $env:GITHUB_ENV
 
       - name: Restore prebuilt Win7 AWS-LC
         id: aws-lc-cache
@@ -523,6 +544,20 @@ jobs:
             --config .github/fixtures/win7-host-repro-config.toml `
             build --locked --package dbx --release --features custom-protocol `
             --target x86_64-win7-windows-msvc --timings
+
+      - name: Capture focused Win7 sccache inputs
+        if: always()
+        shell: pwsh
+        run: ./.github/scripts/ci-win7-sccache-input-trace.ps1
+
+      - name: Upload focused Win7 sccache input trace
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: DBX-win7-sccache-input-trace
+          path: ${{ runner.temp }}/win7-sccache-input-trace/
+          if-no-files-found: warn
+          retention-days: 3
 
       - name: Upload Windows 7 Cargo timings
         if: always()

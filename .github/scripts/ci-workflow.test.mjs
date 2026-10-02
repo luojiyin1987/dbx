@@ -147,6 +147,14 @@ test("Windows compatibility jobs cache Rust compilation without wrapping C or C+
   assert.ok(win7.includes("fc920bf0ec8de6ee65d409111f7ec508035751ba"));
   assert.ok(win7.includes('version: "v0.16.0"'));
   assert.ok(win7.includes("sccache --show-stats"));
+  for (const setting of ["SCCACHE_LOG: debug", "DBX_SCCACHE_INPUT_ENV_DIR", "DBX_SCCACHE_INPUT_SCRIPT", "DBX_SCCACHE_REAL_WRAPPER=sccache", "SCCACHE_ERROR_LOG=$logPath"]) assert.ok(win7.includes(setting));
+  assert.ok(win7.includes("ci-win7-sccache-input-wrapper.rs"));
+  assert.ok(win7.includes("ci-win7-sccache-input-trace.ps1"));
+  assert.ok(win7.includes("name: DBX-win7-sccache-input-trace"));
+  assert.ok(win7.includes('path: ${{ runner.temp }}/win7-sccache-input-trace/'));
+  assert.ok(win7.indexOf("name: Configure Win7 sccache debug log") < win7.indexOf("mozilla-actions/sccache-action"));
+  assert.ok(win7.indexOf("name: Configure focused Win7 sccache input trace") < win7.indexOf("name: Build DBX for Windows 7"));
+  assert.ok(win7.indexOf("name: Build DBX for Windows 7") < win7.indexOf("name: Capture focused Win7 sccache inputs"));
   for (const flag of ["-Z host-config", "-Z target-applies-to-host", "-Z build-std=std,panic_abort"]) assert.ok(win7.includes(flag));
   assert.ok(win7.includes("--config .github/fixtures/win7-host-repro-config.toml"));
   const hostConfig = readFileSync(new URL("../fixtures/win7-host-repro-config.toml", import.meta.url), "utf8");
