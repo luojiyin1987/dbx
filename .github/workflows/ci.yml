@@ -309,6 +309,7 @@ jobs:
       RUSTFLAGS: -C debuginfo=line-tables-only -C target-feature=+crt-static
       RUSTC_WRAPPER: sccache
       SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_GHA_RW_MODE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'READ_WRITE' || 'READ_ONLY' }}
       SCCACHE_GHA_VERSION: windows-standard-v1
     steps:
       - uses: actions/checkout@v7
@@ -340,6 +341,7 @@ jobs:
       RUSTFLAGS: -C debuginfo=line-tables-only -C target-feature=+crt-static
       RUSTC_WRAPPER: sccache
       SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_GHA_RW_MODE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'READ_WRITE' || 'READ_ONLY' }}
       SCCACHE_GHA_VERSION: win7-webview2-1.0.902.49-v1
       SCCACHE_IDLE_TIMEOUT: "0"
       # Single source for the job's nightly pin: the toolchain step and the
@@ -729,6 +731,7 @@ jobs:
       RUSTFLAGS: -C debuginfo=line-tables-only -C target-feature=+crt-static
       RUSTC_WRAPPER: sccache
       SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_GHA_RW_MODE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'READ_WRITE' || 'READ_ONLY' }}
       SCCACHE_GHA_VERSION: duckdb-windows-v1
       # libduckdb-sys uses cc-rs for its bundled C++ sources.
       CC: "sccache cl.exe"
