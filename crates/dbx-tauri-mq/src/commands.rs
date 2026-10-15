@@ -7,7 +7,17 @@ use std::sync::Arc;
 
 use tauri::State;
 
-use crate::commands::connection::{ensure_connection_writable, AppState};
+use dbx_core::connection::AppState;
+
+async fn ensure_connection_writable(state: &Arc<AppState>, connection_id: &str, action: &str) -> Result<(), String> {
+    if let Some(name) = dbx_core::query::connection_readonly_name(state, connection_id).await {
+        return Err(format!(
+            "Read-only mode: connection '{}' has read-only protection enabled. {} blocked.",
+            name, action
+        ));
+    }
+    Ok(())
+}
 
 // ---- Test connection ----
 

@@ -1,0 +1,10 @@
+[package]
+name = "dbx-tauri-mq"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88.0"
+
+[dependencies]
+dbx-core = { path = "../dbx-core", default-features = false, features = ["mq-admin"] }
+serde_json = "1.0"
+tauri = "2.10.3"

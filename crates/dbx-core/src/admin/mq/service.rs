@@ -1,9 +1,6 @@
-//! Service-layer functions for message queue admin operations. These `*_core`
-//! functions are shared by both the desktop command layer
-//! (`src-tauri/src/commands/mq_cmd.rs`) and the web route layer
-//! (`crates/dbx-web/src/routes/mq.rs`), keeping the business logic unified.
-//!
-//! Mirrors the pattern used by `agent_kv::*_core`.
+//! Shared MQ admin operations.
+//! Desktop commands in `crates/dbx-tauri-mq/src/commands.rs` call these functions.
+//! Web routes in `crates/dbx-web/src/routes/mq.rs` also call them.
 
 use crate::connection::AppState;
 use crate::db::agent_driver::AgentLaunchSpec;

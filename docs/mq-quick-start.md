@@ -38,7 +38,7 @@
 ┌─────────────────────────────────────────────────────────────┐
 │               Rust 后端 (Tauri / Axum)                       │
 │  ┌────────────────┐        ┌──────────────────┐            │
-│  │ commands/mq_cmd │  ◀─▶  │ routes/mq        │            │
+│  │ dbx-tauri-mq    │  ◀─▶  │ routes/mq        │            │
 │  └────────────────┘        └──────────────────┘            │
 │           ▼                         ▼                        │
 │  ┌────────────────────────────────────────────────────┐    │
@@ -292,17 +292,19 @@ console.log(permissions) // { 'my-app-role': ['produce', 'consume'] }
 
 ## 桌面端命令注册
 
-所有后端功能已通过 Tauri commands 暴露给前端：
+75 个 MQ 命令在 `dbx-tauri-mq` 注册。`mq-admin` 功能控制该 crate 的依赖和路由。下例只展示三个命令。
 
 ```rust
 // src-tauri/src/lib.rs
-.invoke_handler(tauri::generate_handler![
-    // ... 其他命令
-    commands::mq_cmd::mq_test_connection,
-    commands::mq_cmd::mq_list_tenants,
-    commands::mq_cmd::mq_create_tenant,
-    // ... 共 48 个 mq 命令
-])
+#[cfg(feature = "mq-admin")]
+let main_handler = dbx_tauri_mq::route(main_handler);
+
+// crates/dbx-tauri-mq/src/lib.rs
+tauri::generate_handler![
+    commands::mq_test_connection,
+    commands::mq_list_tenants,
+    commands::mq_create_tenant,
+]
 ```
 
 ## Web 端路由注册
