@@ -769,6 +769,87 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
+      - name: Measure Win7 dbx library codegen units
+        if: github.head_ref == 'perf/win7-codegen-units-ab'
+        shell: pwsh
+        run: |
+          if ($env:CARGO_PROFILE_RELEASE_CODEGEN_UNITS -ne "8") {
+            throw "Expected eight release codegen units for the Win7 control."
+          }
+          $resultRoot = Join-Path $env:RUNNER_TEMP "dbx-win7-codegen-units"
+          New-Item -ItemType Directory -Force -Path $resultRoot | Out-Null
+          $env:TAURI_CONFIG = Get-Content src-tauri/tauri.webview2-win7-fixed.conf.json -Raw
+          $variants = @(
+            @{ Name = "warmup-8"; Units = 8 },
+            @{ Name = "units-16"; Units = 16 },
+            @{ Name = "control-8"; Units = 8 }
+          )
+          $results = @()
+          $savedWrapper = $env:RUSTC_WRAPPER
+          try {
+            $env:RUSTC_WRAPPER = ""
+            foreach ($variant in $variants) {
+              $outputDir = Join-Path $resultRoot $variant.Name
+              New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
+              $timer = [System.Diagnostics.Stopwatch]::StartNew()
+              cargo rustc --locked --package dbx --release --lib `
+                --features custom-protocol --target x86_64-win7-windows-msvc `
+                -Z build-std=std,panic_abort -- `
+                "-Ccodegen-units=$($variant.Units)" `
+                "-Zdump-mono-stats=$outputDir" "-Zdump-mono-stats-format=json"
+              $exitCode = $LASTEXITCODE
+              $timer.Stop()
+              if ($exitCode -ne 0) {
+                throw "$($variant.Name) compile failed with exit code $exitCode."
+              }
+              $monoFile = Get-ChildItem $outputDir -File -Filter "*.mono_items.json" |
+                Select-Object -First 1
+              if (!$monoFile) {
+                throw "$($variant.Name) compile did not create mono statistics."
+              }
+              $monoItems = Get-Content $monoFile.FullName -Raw | ConvertFrom-Json
+              $rlib = Get-ChildItem "target/x86_64-win7-windows-msvc/release/deps" `
+                -File -Filter "libdbx_lib-*.rlib" |
+                Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
+              if (!$rlib) {
+                throw "$($variant.Name) compile did not create dbx_lib."
+              }
+              $results += [pscustomobject]@{
+                Name = $variant.Name
+                CodegenUnits = $variant.Units
+                Seconds = [math]::Round($timer.Elapsed.TotalSeconds, 2)
+                MonoItems = $monoItems.Count
+                MonoEstimate = ($monoItems | Measure-Object -Property total_estimate -Sum).Sum
+                RlibBytes = $rlib.Length
+              }
+            }
+          } finally {
+            $env:RUSTC_WRAPPER = $savedWrapper
+          }
+          $results | ConvertTo-Json -Depth 4 |
+            Set-Content (Join-Path $resultRoot "summary.json") -Encoding utf8NoBOM
+          $summary = @(
+            "### Win7 dbx library codegen units"
+            ""
+            "The first pass warms dependencies after the compiler wrapper changes."
+            ""
+            "| Pass | Units | Seconds | Mono items | Estimated cost | rlib bytes |"
+            "| --- | ---: | ---: | ---: | ---: | ---: |"
+          )
+          foreach ($result in $results) {
+            $summary += "| $($result.Name) | $($result.CodegenUnits) | $($result.Seconds) | $($result.MonoItems) | $($result.MonoEstimate) | $($result.RlibBytes) |"
+          }
+          $summary | Add-Content $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload Win7 dbx library codegen unit data
+        if: always() && github.head_ref == 'perf/win7-codegen-units-ab'
+        uses: actions/upload-artifact@v6
+        with:
+          name: DBX-win7-codegen-units-ab
+          path: ${{ runner.temp }}/dbx-win7-codegen-units/
+          if-no-files-found: warn
+          retention-days: 7
+
   duckdb-windows-driver:
     needs: changes
     if: needs.changes.outputs.duckdb_windows == 'true'

@@ -358,6 +358,12 @@ test("Windows compatibility jobs cache Rust compilation without wrapping C or C+
   assert.ok(win7.includes("retention-days: 3"));
   assert.ok(win7.indexOf("name: Build DBX for Windows 7") < win7.indexOf("name: Measure dbx library command registry expansion"));
   assert.ok(win7.indexOf("name: Measure dbx library command registry expansion") < win7.indexOf("name: Upload dbx library command registry A/B"));
+  assert.ok(win7.includes("name: Measure Win7 dbx library codegen units"));
+  assert.ok(win7.includes("if: github.head_ref == 'perf/win7-codegen-units-ab'"));
+  assert.ok(win7.includes('@{ Name = "warmup-8"; Units = 8 }'));
+  assert.ok(win7.includes('@{ Name = "units-16"; Units = 16 }'));
+  assert.ok(win7.includes('@{ Name = "control-8"; Units = 8 }'));
+  assert.ok(win7.includes("name: DBX-win7-codegen-units-ab"));
   assert.doesNotMatch(win7, /^\s+(?:CC|CXX):/m);
 });
 
