@@ -33,6 +33,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Record PR merge commit
+        shell: pwsh
+        run: |
+          "PR_MERGE_SHA=$(git rev-parse HEAD)" | Add-Content $env:GITHUB_ENV
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
@@ -143,7 +148,7 @@ jobs:
           }
 
           Measure-Build "main"
-          git switch --detach "${{ github.event.pull_request.head.sha }}"
+          git switch --detach $env:PR_MERGE_SHA
           if ($LASTEXITCODE -ne 0) { throw "Could not check out the MQ crate revision." }
           Measure-Build "mq-crate"
 
