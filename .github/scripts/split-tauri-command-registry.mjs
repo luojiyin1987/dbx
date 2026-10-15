@@ -52,12 +52,16 @@ export function splitCommandRegistry(source) {
 ${renderNames(second)}
     ];
 
+    fn invoke_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static {
+        tauri::generate_handler![
+${renderEntries(second, "            ")}
+        ]
+    }
+
     pub fn route(
         main_handler: impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static,
     ) -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static {
-        let split_handler = tauri::generate_handler![
-${renderEntries(second, "            ")}
-        ];
+        let split_handler = invoke_handler();
         move |invoke| {
             if COMMANDS.contains(&invoke.message.command()) {
                 split_handler(invoke)

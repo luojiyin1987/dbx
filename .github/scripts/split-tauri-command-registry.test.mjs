@@ -12,6 +12,7 @@ test("split registry keeps every command and feature gate", () => {
   assert.equal((source.match(/commands::mq_cmd::mq_test_connection,/g) ?? []).length, 1);
   assert.match(source, /#\[cfg\(feature = "mq-admin"\)\]\n\s+commands::mq_cmd::mq_test_connection,/);
   assert.match(source, /route_external_commands\(command_registry_split::route\(/);
+  assert.match(source, /fn invoke_handler\(\) -> impl Fn\(tauri::ipc::Invoke<tauri::Wry>\) -> bool/);
   assert.match(source, /COMMANDS\.contains\(&invoke\.message\.command\(\)\)/);
   assert.throws(() => splitCommandRegistry(source), /Expected one main Tauri command registry/);
 });
