@@ -114,15 +114,12 @@ jobs:
             $timer.Stop()
             if ($exitCode -ne 0) { throw "$name executable build failed with exit code $exitCode." }
 
-            $linkLine = Select-String -LiteralPath $logPath -Pattern 'link-args:' | Select-Object -Last 1
-            if (!$linkLine) { throw "$name build did not print linker arguments." }
-            $linkCommand = $linkLine.Line -replace '^.*link-args:\s*', ''
+            $linkLine = Select-String -LiteralPath $logPath -Pattern '^"[^"]*(?:link|lld-link)\.exe"\s' |
+              Select-Object -Last 1
+            if (!$linkLine) { throw "$name build did not print a linker command." }
+            $linkCommand = $linkLine.Line
             $linkCommand | Set-Content -LiteralPath (Join-Path $resultRoot "$name-link-args.txt") -Encoding utf8NoBOM
-            if ($linkCommand -match '^"([^"]+)"') {
-              $linker = $Matches[1]
-            } else {
-              $linker = ($linkCommand -split '\s+')[0]
-            }
+            $linker = ($linkCommand -split '"')[1]
             $results[$name] = @{
               seconds = [math]::Round($timer.Elapsed.TotalSeconds, 2)
               linker = $linker
