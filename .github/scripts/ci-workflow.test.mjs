@@ -361,6 +361,7 @@ test("Windows compatibility jobs cache Rust compilation without wrapping C or C+
   assert.ok(win7.includes("name: Measure Win7 command groups"));
   assert.ok(win7.includes("if: github.head_ref == 'perf/win7-command-wrapper-analysis'"));
   assert.ok(win7.includes('foreach ($group in @("full", "mq_cmd", "query"))'));
+  assert.ok(win7.includes('$line -match "^\\s+commands::$($group)::"'));
   assert.ok(win7.includes('git restore --source=HEAD -- $sourcePath'));
   assert.ok(win7.includes("name: DBX-win7-command-groups"));
   assert.doesNotMatch(win7, /^\s+(?:CC|CXX):/m);

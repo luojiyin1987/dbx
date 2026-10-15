@@ -792,7 +792,7 @@ jobs:
                 } elseif ($insideHandler -and $line -match '^\s*\]\)\)') {
                   $insideHandler = $false
                 } elseif ($insideHandler -and $group -ne "full" -and
-                          $line -match "^\s+commands::$group::") {
+                          $line -match "^\s+commands::$($group)::") {
                   $removed++
                   continue
                 }
