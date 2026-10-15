@@ -36,8 +36,9 @@ const graph = {
   "dbx-mcp": ["dbx-core"],
   "dbx-cli": ["dbx-core", "dbx-mcp"],
   "dbx-web": ["dbx-core", "dbx-mcp"],
-  dbx: ["dbx-core", "dbx-mcp", "dbx-tauri-consul", "dbx-tauri-schema"],
+  dbx: ["dbx-core", "dbx-mcp", "dbx-tauri-consul", "dbx-tauri-mq", "dbx-tauri-schema"],
   "dbx-tauri-consul": ["dbx-core"],
+  "dbx-tauri-mq": ["dbx-core"],
   "dbx-tauri-schema": ["dbx-core"],
 };
 const metadata = {
@@ -120,6 +121,7 @@ test("ordinary desktop Rust changes keep Windows compilation without full Win7 p
     "crates/dbx-driver-mysql/tests/query.rs",
     "src-tauri/src/commands/query.rs",
     "crates/dbx-tauri-consul/src/lib.rs",
+    "crates/dbx-tauri-mq/src/lib.rs",
     "crates/dbx-tauri-schema/src/lib.rs",
   ]) {
     const result = plan([file]);
