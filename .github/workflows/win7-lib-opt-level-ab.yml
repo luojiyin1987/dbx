@@ -1,0 +1,160 @@
+name: Win7 dbx_lib opt-level A/B
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/win7-lib-opt-level-ab.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: windows-2022
+    timeout-minutes: 180
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_RELEASE_LTO: "off"
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "8"
+      RUSTFLAGS: -C debuginfo=line-tables-only -C target-feature=+crt-static
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: ${{ secrets.SCCACHE_S3_BUCKET == '' && 'true' || 'false' }}
+      SCCACHE_GHA_VERSION: win7-webview2-1.0.902.49-v1
+      SCCACHE_IDLE_TIMEOUT: "0"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.34.7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.23.3
+          cache: pnpm
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Rust for Windows 7
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: nightly-2026-07-22
+          components: rust-src
+
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+        with:
+          version: "v0.16.0"
+
+      - name: Configure S3 sccache
+        if: env.SCCACHE_GHA_ENABLED != 'true'
+        shell: bash
+        env:
+          CACHE_BUCKET: ${{ secrets.SCCACHE_S3_BUCKET }}
+          CACHE_ENDPOINT: ${{ secrets.SCCACHE_S3_ENDPOINT }}
+          CACHE_REGION: ${{ secrets.SCCACHE_S3_REGION }}
+          CACHE_KEY_PREFIX: ${{ secrets.SCCACHE_S3_KEY_PREFIX }}
+          CACHE_ACCESS_KEY_ID: ${{ secrets.SCCACHE_S3_ACCESS_KEY_ID }}
+          CACHE_SECRET_ACCESS_KEY: ${{ secrets.SCCACHE_S3_SECRET_ACCESS_KEY }}
+        run: |
+          {
+            echo "SCCACHE_BUCKET=${CACHE_BUCKET}"
+            echo "SCCACHE_ENDPOINT=${CACHE_ENDPOINT}"
+            echo "SCCACHE_REGION=${CACHE_REGION}"
+            echo "SCCACHE_S3_KEY_PREFIX=${CACHE_KEY_PREFIX}"
+            echo "SCCACHE_S3_USE_SSL=true"
+            echo "AWS_ACCESS_KEY_ID=${CACHE_ACCESS_KEY_ID}"
+            echo "AWS_SECRET_ACCESS_KEY=${CACHE_SECRET_ACCESS_KEY}"
+          } >> "$GITHUB_ENV"
+
+      - name: Prepare Win7-compatible WebView2 loader
+        shell: pwsh
+        run: ./.github/scripts/prepare-webview2-win7-loader.ps1
+
+      - name: Prepare WebView2 109 fixed runtime
+        shell: pwsh
+        run: ./.github/scripts/prepare-webview2-win7-runtime.ps1
+
+      - name: Build frontend
+        run: pnpm build
+
+      - name: Warm Rust dependencies
+        shell: pwsh
+        run: |
+          $env:TAURI_CONFIG = Get-Content src-tauri/tauri.webview2-win7-fixed.conf.json -Raw
+          cargo -Z host-config -Z target-applies-to-host -Z build-std=std,panic_abort `
+            --config .github/fixtures/win7-host-repro-config.toml `
+            build --locked --package dbx --lib --release --features custom-protocol `
+            --target x86_64-win7-windows-msvc
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Compare dbx_lib optimization levels
+        shell: pwsh
+        env:
+          SCCACHE_RECACHE: "1"
+        run: |
+          $env:TAURI_CONFIG = Get-Content src-tauri/tauri.webview2-win7-fixed.conf.json -Raw
+          $resultRoot = Join-Path $env:RUNNER_TEMP "dbx-lib-opt-level-ab"
+          New-Item -ItemType Directory -Force -Path $resultRoot | Out-Null
+          rustc -Vv | Set-Content -LiteralPath (Join-Path $resultRoot "rustc-version.txt")
+          $results = @{}
+
+          function Measure-Build([string] $name, [int] $optLevel) {
+            cargo clean --package dbx --release --target x86_64-win7-windows-msvc
+            if ($LASTEXITCODE -ne 0) { throw "Could not clean dbx before $name." }
+
+            $timer = [System.Diagnostics.Stopwatch]::StartNew()
+            cargo -Z host-config -Z target-applies-to-host -Z build-std=std,panic_abort `
+              --config .github/fixtures/win7-host-repro-config.toml `
+              rustc --locked --package dbx --lib --release --features custom-protocol `
+              --target x86_64-win7-windows-msvc --timings `
+              -- "-Copt-level=$optLevel"
+            $exitCode = $LASTEXITCODE
+            $timer.Stop()
+            if ($exitCode -ne 0) { throw "$name compile failed with exit code $exitCode." }
+
+            $rlib = Get-ChildItem -LiteralPath "target/x86_64-win7-windows-msvc/release/deps" `
+              -File -Filter "libdbx_lib-*.rlib" |
+              Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
+            if (!$rlib) { throw "$name compile did not write dbx_lib." }
+            $timing = "target/cargo-timings/cargo-timing.html"
+            if (!(Test-Path -LiteralPath $timing)) { throw "$name compile did not write Cargo timings." }
+            Copy-Item -LiteralPath $timing -Destination (Join-Path $resultRoot "$name-cargo-timing.html")
+
+            $results[$name] = @{
+              opt_level = $optLevel
+              command_seconds = [math]::Round($timer.Elapsed.TotalSeconds, 2)
+              rlib_bytes = $rlib.Length
+            }
+            Write-Host "$name command: $($results[$name].command_seconds) seconds; rlib: $($rlib.Length) bytes"
+          }
+
+          Measure-Build "baseline" 3
+          Measure-Build "opt2" 2
+
+          $results | ConvertTo-Json -Depth 3 |
+            Set-Content -LiteralPath (Join-Path $resultRoot "summary.json") -Encoding utf8NoBOM
+          @(
+            "### Win7 dbx_lib opt-level A/B"
+            ""
+            "| Build | Command wall time | rlib bytes |"
+            "| --- | ---: | ---: |"
+            "| opt-level 3 | $($results['baseline'].command_seconds) s | $($results['baseline'].rlib_bytes) |"
+            "| opt-level 2 | $($results['opt2'].command_seconds) s | $($results['opt2'].rlib_bytes) |"
+            ""
+            "The Cargo timing files show the dbx_lib compiler task for each build."
+            "Command wall time can include dependency rebuilds."
+            "Both builds use the same source, target, features, codegen units, and LTO setting."
+          ) | Add-Content $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload opt-level A/B results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: DBX-win7-lib-opt-level-ab
+          path: ${{ runner.temp }}/dbx-lib-opt-level-ab/
+          if-no-files-found: warn
+          retention-days: 7
