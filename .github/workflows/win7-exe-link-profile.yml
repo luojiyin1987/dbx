@@ -94,7 +94,6 @@ jobs:
       - name: Measure executable and record linker
         shell: pwsh
         run: |
-          $env:RUSTC_WRAPPER = ""
           $env:TAURI_CONFIG = Get-Content src-tauri/tauri.webview2-win7-fixed.conf.json -Raw
           $resultRoot = Join-Path $env:RUNNER_TEMP "dbx-exe-link-profile"
           $profileDir = Join-Path $resultRoot "self-profile"
@@ -113,6 +112,9 @@ jobs:
             $exitCode = $LASTEXITCODE
             $timer.Stop()
             if ($exitCode -ne 0) { throw "$name executable build failed with exit code $exitCode." }
+            if (Select-String -LiteralPath $logPath -Pattern '--crate-name dbx_lib' -SimpleMatch -Quiet) {
+              throw "$name build rebuilt dbx_lib and did not isolate the executable."
+            }
 
             $linkLine = Select-String -LiteralPath $logPath -Pattern '^"[^"]*(?:link|lld-link)\.exe"\s' |
               Select-Object -Last 1
