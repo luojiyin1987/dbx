@@ -1809,6 +1809,30 @@ impl AgentDriverClient {
         timeout_duration: Option<Duration>,
         cancel_token: Option<CancellationToken>,
     ) -> Result<T, AgentCallError> {
+        let shared_runtime = self.shared_runtime.is_some();
+        let result = self.call_value_with_timeout_and_cancel(method, params, timeout_duration, cancel_token).await?;
+        serde_json::from_value(result).map_err(|error| {
+            let message = format!("Failed to deserialize agent result: {error}");
+            if shared_runtime {
+                AgentCallError::ContractViolation {
+                    rpc_code: None,
+                    message,
+                    reason: ContractViolationReason::InvalidResult,
+                }
+                .with_legacy_session_id(self.agent_session_id.as_deref())
+            } else {
+                legacy_agent_call_error(self.format_agent_process_error(&message), self.agent_session_id.as_deref())
+            }
+        })
+    }
+
+    async fn call_value_with_timeout_and_cancel(
+        &mut self,
+        method: &str,
+        params: Value,
+        timeout_duration: Option<Duration>,
+        cancel_token: Option<CancellationToken>,
+    ) -> Result<Value, AgentCallError> {
         if let Some(runtime) = &self.shared_runtime {
             let agent_session_id = self.agent_session_id.clone();
             let mut params = params;
@@ -1924,8 +1948,7 @@ impl AgentDriverClient {
             let result = if let Some(err) = resp.get("error") {
                 Err(format_agent_rpc_error(err))
             } else if let Some(result_val) = resp.get("result") {
-                serde_json::from_value::<T>(result_val.clone())
-                    .map_err(|e| format!("Failed to deserialize agent result: {e}"))
+                Ok(result_val.clone())
             } else {
                 Err(format!("Agent response missing both 'result' and 'error': {line}"))
             };
