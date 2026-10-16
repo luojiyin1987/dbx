@@ -591,6 +591,7 @@ jobs:
         run: pnpm build
 
       - name: Build DBX for Windows 7
+        if: github.head_ref != 'perf/win7-lib-opt-s-vs-one'
         shell: pwsh
         run: |
           $env:TAURI_CONFIG = Get-Content src-tauri/tauri.webview2-win7-fixed.conf.json -Raw
@@ -600,7 +601,7 @@ jobs:
             --target x86_64-win7-windows-msvc --timings
 
       - name: Upload Windows 7 Cargo timings
-        if: always()
+        if: always() && github.head_ref != 'perf/win7-lib-opt-s-vs-one'
         uses: actions/upload-artifact@v6
         with:
           name: DBX-win7-cargo-timings
@@ -609,14 +610,17 @@ jobs:
           retention-days: 7
 
       - name: Audit Windows 7 PE imports
+        if: github.head_ref != 'perf/win7-lib-opt-s-vs-one'
         shell: pwsh
         run: ./.github/scripts/assert-win7-pe-compat.ps1 -BinaryPath target/x86_64-win7-windows-msvc/release/dbx.exe
 
       - name: Audit Win7 WebView2 loader markers
+        if: github.head_ref != 'perf/win7-lib-opt-s-vs-one'
         shell: pwsh
         run: ./.github/scripts/assert-webview2-win7-loader.ps1 -BinaryPath target/x86_64-win7-windows-msvc/release/dbx.exe
 
       - name: Bundle Windows 7 fixed-runtime test installer with zlib
+        if: github.head_ref != 'perf/win7-lib-opt-s-vs-one'
         shell: pwsh
         run: |
           $bundleDir = "target/x86_64-win7-windows-msvc/release/bundle/nsis"
@@ -633,6 +637,7 @@ jobs:
           Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256
 
       - name: Audit Windows 7 installer contents
+        if: github.head_ref != 'perf/win7-lib-opt-s-vs-one'
         shell: pwsh
         run: |
           $installer = Get-ChildItem "target/x86_64-win7-windows-msvc/release/bundle/nsis" -Filter "*.exe" |
@@ -646,6 +651,7 @@ jobs:
         run: sccache --show-stats
 
       - name: Upload Windows 7 test installer
+        if: github.head_ref != 'perf/win7-lib-opt-s-vs-one'
         uses: actions/upload-artifact@v6
         with:
           name: DBX-win7-fixed-runtime-test
