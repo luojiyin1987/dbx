@@ -693,6 +693,9 @@ jobs:
               ElapsedSeconds = [math]::Round($timer.Elapsed.TotalSeconds, 2)
               DbxLibSeconds = [double]::Parse($match.Groups[1].Value, [cultureinfo]::InvariantCulture)
             }
+            if ($results[$name].DbxLibSeconds -lt 30) {
+              throw "$name dbx_lib was not rebuilt; the timing is invalid."
+            }
           }
 
           try {
@@ -702,6 +705,7 @@ jobs:
             }
             Measure-Variant "baseline"
             Copy-Item $mergedSource $sourcePath -Force
+            [System.IO.File]::SetLastWriteTimeUtc($sourcePath, [DateTime]::UtcNow)
             Measure-Variant "merged"
           } finally {
             Copy-Item $mergedSource $sourcePath -Force
