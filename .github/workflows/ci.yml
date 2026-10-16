@@ -699,14 +699,14 @@ jobs:
           }
 
           try {
+            [System.IO.File]::SetLastWriteTimeUtc($sourcePath, [DateTime]::UtcNow)
+            Measure-Variant "merged"
             git restore --source=$baselineSha -- $sourcePath
             if ($LASTEXITCODE -ne 0) {
               throw "Failed to restore the pre-refactor source."
             }
-            Measure-Variant "baseline"
-            Copy-Item $mergedSource $sourcePath -Force
             [System.IO.File]::SetLastWriteTimeUtc($sourcePath, [DateTime]::UtcNow)
-            Measure-Variant "merged"
+            Measure-Variant "baseline"
           } finally {
             Copy-Item $mergedSource $sourcePath -Force
           }
