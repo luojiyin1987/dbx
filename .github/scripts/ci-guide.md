@@ -51,7 +51,7 @@ whose development dependency is `dbx-core`.
 
 - Ordinary Rust PRs select foundation, driver, and application test groups from
   `scripts/ci-config.mjs`. Each group contains several packages, not one runner per
-  crate. The application group includes `dbx-tauri-consul` and `dbx-tauri-schema`.
+  crate. The application group includes `dbx-tauri-consul`, `dbx-tauri-query`, and `dbx-tauri-schema`.
   At most three Rust test groups run concurrently; a contract checks the groups
   against actual workspace metadata so extracted crates cannot silently force
   every PR into the full-workspace fallback.

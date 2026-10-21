@@ -47,7 +47,6 @@ pub mod plugin_media;
 pub mod plugin_storage;
 pub mod plugins;
 pub mod prompt_template;
-pub mod query;
 pub mod query_cancel;
 pub mod query_result_export;
 pub mod redis_cmd;

@@ -2154,6 +2154,7 @@ dependencies = [
  "dbx-core",
  "dbx-mcp",
  "dbx-tauri-consul",
+ "dbx-tauri-query",
  "dbx-tauri-schema",
  "deadpool-postgres",
  "font-kit",
@@ -2728,6 +2729,20 @@ dependencies = [
  "serde",
  "serde_json",
  "tauri",
+]
+
+[[package]]
+name = "dbx-tauri-query"
+version = "0.1.0"
+dependencies = [
+ "dbx-core",
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tempfile",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]

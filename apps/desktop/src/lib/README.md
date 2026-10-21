@@ -39,4 +39,4 @@ Regression coverage belongs in:
 
 - `packages/app-tests/schemaDiff.test.ts`
 - `crates/dbx-core/src/query/mod.rs`
-- `src-tauri/src/commands/query.rs`
+- `crates/dbx-tauri-query/src/commands.rs`

@@ -1,0 +1,19 @@
+[package]
+name = "dbx-tauri-query"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88.0"
+
+[features]
+default = []
+duckdb-sidecar = ["dbx-core/duckdb-sidecar"]
+
+[dependencies]
+dbx-core = { path = "../dbx-core", default-features = false }
+log = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tauri = "2.10.3"
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
+uuid = { version = "1", features = ["v4"] }
