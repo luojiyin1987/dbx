@@ -1,0 +1,138 @@
+name: Win7 installer compression order A/B
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/win7-installer-compression-order-ab.yml
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  measure:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    outputs:
+      source_bytes: ${{ steps.source.outputs.source_bytes }}
+    steps:
+      - name: Download main installer source
+        uses: actions/download-artifact@v4
+        with:
+          name: DBX-win7-fixed-runtime-test
+          path: ${{ runner.temp }}/installer-ab/source
+          run-id: 39297773137
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+
+      - name: Check source installer
+        id: source
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'installer-ab/source'
+          $files = @(Get-ChildItem -LiteralPath $root -File -Recurse)
+          if ($files.Count -ne 1 -or $files[0].Extension -ne '.exe') {
+            throw 'Expected one Win7 installer.'
+          }
+          "source_bytes=$($files[0].Length)" >> $env:GITHUB_OUTPUT
+
+      - name: Upload installer level 6
+        uses: actions/upload-artifact@v6
+        with:
+          name: ab-win7-installer-order-6
+          path: ${{ runner.temp }}/installer-ab/source/
+          compression-level: 6
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload installer level 0
+        uses: actions/upload-artifact@v6
+        with:
+          name: ab-win7-installer-order-0
+          path: ${{ runner.temp }}/installer-ab/source/
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Download installer level 0
+        uses: actions/download-artifact@v4
+        with:
+          name: ab-win7-installer-order-0
+          path: ${{ runner.temp }}/installer-ab/received/level-0
+      - name: Download installer level 6
+        uses: actions/download-artifact@v4
+        with:
+          name: ab-win7-installer-order-6
+          path: ${{ runner.temp }}/installer-ab/received/level-6
+
+      - name: Verify downloaded installers
+        shell: pwsh
+        run: |
+          $source = @(Get-ChildItem (Join-Path $env:RUNNER_TEMP 'installer-ab/source') -File -Recurse)
+          $expected = (Get-FileHash -LiteralPath $source[0].FullName -Algorithm SHA256).Hash
+          foreach ($level in @(0, 6)) {
+            $root = Join-Path $env:RUNNER_TEMP "installer-ab/received/level-$level"
+            $files = @(Get-ChildItem -LiteralPath $root -File -Recurse)
+            if ($files.Count -ne 1 -or $files[0].Name -ne $source[0].Name) {
+              throw "Level $level has a different file list."
+            }
+            $actual = (Get-FileHash -LiteralPath $files[0].FullName -Algorithm SHA256).Hash
+            if ($actual -ne $expected) { throw "Level $level has a different SHA-256 hash." }
+          }
+
+  report:
+    needs: measure
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_BYTES: ${{ needs.measure.outputs.source_bytes }}
+    steps:
+      - name: Report reversed order sample
+        run: |
+          python - <<'PY'
+          import datetime
+          import json
+          import os
+          import urllib.request
+
+          base = f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
+
+          def get(path):
+              request = urllib.request.Request(
+                  base + path,
+                  headers={"Authorization": f"Bearer {os.environ['GH_TOKEN']}", "Accept": "application/vnd.github+json"},
+              )
+              with urllib.request.urlopen(request) as response:
+                  return json.load(response)
+
+          jobs = get("/jobs?per_page=100")["jobs"]
+          steps = {step["name"]: step for job in jobs if job["name"] == "measure" for step in job["steps"]}
+          artifacts = {item["name"]: item for item in get("/artifacts?per_page=100")["artifacts"]}
+
+          def seconds(name):
+              step = steps[name]
+              start = datetime.datetime.fromisoformat(step["started_at"].replace("Z", "+00:00"))
+              end = datetime.datetime.fromisoformat(step["completed_at"].replace("Z", "+00:00"))
+              return (end - start).total_seconds()
+
+          lines = [
+              "## Win7 installer compression order A/B",
+              "",
+              "Level 6 uploads first. Level 0 downloads first. Both use the same installer on one Windows 2022 runner.",
+              "",
+              "| Level | Input MiB | Archive MiB | Upload s | Download and extract s | Total s |",
+              "| ---: | ---: | ---: | ---: | ---: | ---: |",
+          ]
+          for level in (6, 0):
+              upload = seconds(f"Upload installer level {level}")
+              download = seconds(f"Download installer level {level}")
+              archive = artifacts[f"ab-win7-installer-order-{level}"]["size_in_bytes"]
+              lines.append(
+                  f"| {level} | {int(os.environ['SOURCE_BYTES']) / 1048576:.2f} | {archive / 1048576:.2f} "
+                  f"| {upload:.0f} | {download:.0f} | {upload + download:.0f} |"
+              )
+          report = "\n".join(lines) + "\n"
+          print(report)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write(report)
+          PY
