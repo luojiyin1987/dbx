@@ -201,7 +201,7 @@ jobs:
               if (Compare-Object -ReferenceObject $source -DifferenceObject $received) {
                 throw "$kind level $level differs from the source."
               }
-              "$kind level $level: $($received.Count) files verified" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+              "$kind level ${level}: $($received.Count) files verified" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
             }
           }
 
