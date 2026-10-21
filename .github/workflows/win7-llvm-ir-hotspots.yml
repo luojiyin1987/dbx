@@ -91,13 +91,13 @@ jobs:
             --target x86_64-win7-windows-msvc
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Capture dbx library LLVM IR and Self Profile
+      - name: Capture dbx library LLVM IR
         shell: pwsh
         run: |
           $env:RUSTC_WRAPPER = ""
           $env:TAURI_CONFIG = Get-Content src-tauri/tauri.webview2-win7-fixed.conf.json -Raw
-          $profileDir = Join-Path $env:RUNNER_TEMP "dbx-lib-llvm-profile"
-          New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
+          $reportDir = Join-Path $env:RUNNER_TEMP "dbx-lib-llvm-report"
+          New-Item -ItemType Directory -Force -Path $reportDir | Out-Null
           cargo clean --package dbx --release --target x86_64-win7-windows-msvc
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $timer = [System.Diagnostics.Stopwatch]::StartNew()
@@ -105,7 +105,7 @@ jobs:
             --config .github/fixtures/win7-host-repro-config.toml `
             rustc --locked --package dbx --lib --release --features custom-protocol `
             --target x86_64-win7-windows-msvc --timings `
-            -- -Csave-temps "-Zself-profile=$profileDir" "-Zself-profile-events=default,llvm"
+            -- -Csave-temps
           $exitCode = $LASTEXITCODE
           $timer.Stop()
           if ($exitCode -ne 0) { exit $exitCode }
@@ -118,16 +118,16 @@ jobs:
           [pscustomobject]@{
             commit = (git rev-parse HEAD).Trim()
             rustc = (rustc -vV | Out-String).Trim()
-            seconds_with_instrumentation = [math]::Round($timer.Elapsed.TotalSeconds, 2)
+            seconds_with_save_temps = [math]::Round($timer.Elapsed.TotalSeconds, 2)
             bitcode_files = $bitcode.Count
             bitcode_bytes = ($bitcode | Measure-Object Length -Sum).Sum
             rlib_bytes = $rlib.Length
-          } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $profileDir 'metadata.json')
+          } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $reportDir 'metadata.json')
 
       - name: Count LLVM IR lines by function
         shell: pwsh
         run: |
-          $profileDir = Join-Path $env:RUNNER_TEMP "dbx-lib-llvm-profile"
+          $reportDir = Join-Path $env:RUNNER_TEMP "dbx-lib-llvm-report"
           $sysroot = (rustc --print sysroot).Trim()
           $llvmDis = Join-Path $sysroot 'lib/rustlib/x86_64-pc-windows-msvc/bin/llvm-dis.exe'
           if (!(Test-Path -LiteralPath $llvmDis)) { throw "llvm-dis.exe is missing from llvm-tools-preview." }
@@ -141,38 +141,23 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
           $installRoot = Join-Path $env:RUNNER_TEMP 'cargo-llvm-lines'
-          cargo install --locked --root $installRoot cargo-llvm-lines
+          cargo install --locked --version 0.4.48 --root $installRoot cargo-llvm-lines
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:PATH = (Join-Path $installRoot 'bin') + [IO.Path]::PathSeparator + $env:PATH
           $irFiles = @(Get-ChildItem -LiteralPath $irDir -Filter '*.ll' -File | ForEach-Object FullName)
           if ($irFiles.Count -ne $bitcode.Count) { throw "LLVM IR file count does not match bitcode count." }
-          $report = Join-Path $profileDir 'llvm-lines.txt'
-          cargo llvm-lines --files $irFiles | Set-Content -LiteralPath $report
+          $report = Join-Path $reportDir 'llvm-lines.txt'
+          $fileArgs = @()
+          foreach ($file in $irFiles) { $fileArgs += @('--files', $file) }
+          cargo llvm-lines @fileArgs | Set-Content -LiteralPath $report
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if ((Get-Item -LiteralPath $report).Length -eq 0) { throw "cargo-llvm-lines wrote an empty report." }
-          cargo llvm-lines --version | Set-Content -LiteralPath (Join-Path $profileDir 'llvm-lines-version.txt')
+          cargo llvm-lines --version | Set-Content -LiteralPath (Join-Path $reportDir 'llvm-lines-version.txt')
           @('### Win7 dbx_lib LLVM IR lines', '', '```text') +
             @(Get-Content -LiteralPath $report -TotalCount 35) +
             @('```', '', 'IR line counts rank generated functions. They do not measure LLVM CPU time.') |
             Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
           Remove-Item -LiteralPath $irDir -Recurse -Force
-
-      - name: Summarize Self Profile
-        continue-on-error: true
-        shell: pwsh
-        run: |
-          $profileDir = Join-Path $env:RUNNER_TEMP "dbx-lib-llvm-profile"
-          $installRoot = Join-Path $env:RUNNER_TEMP "measureme"
-          cargo install --git https://github.com/rust-lang/measureme --branch stable `
-            --locked --root $installRoot summarize
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $profile = Get-ChildItem -LiteralPath $profileDir -File -Filter "dbx_lib-*.mm_profdata" |
-            Select-Object -First 1
-          if (!$profile) { throw "dbx_lib Self Profile data is missing." }
-          $summaryPath = Join-Path $profileDir "summary.txt"
-          & (Join-Path $installRoot "bin/summarize.exe") summarize $profile.FullName |
-            Tee-Object -FilePath $summaryPath
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload LLVM IR hotspot report
         if: always()
@@ -180,7 +165,7 @@ jobs:
         with:
           name: DBX-win7-llvm-ir-hotspots
           path: |
-            ${{ runner.temp }}/dbx-lib-llvm-profile/
+            ${{ runner.temp }}/dbx-lib-llvm-report/
             target/cargo-timings/
           if-no-files-found: warn
-          retention-days: 3
+          retention-days: 1
