@@ -73,9 +73,8 @@ jobs:
             $timer = [System.Diagnostics.Stopwatch]::StartNew()
             cargo -Z host-config -Z target-applies-to-host -Z build-std=std,panic_abort `
               --config .github/fixtures/win7-host-repro-config.toml `
-              --config "profile.release.package.dbx.codegen-units=$($variant.Units)" `
               rustc --locked --package dbx --lib --release --features custom-protocol `
-              --target x86_64-win7-windows-msvc
+              --target x86_64-win7-windows-msvc -- "-Ccodegen-units=$($variant.Units)"
             $exitCode = $LASTEXITCODE
             $timer.Stop()
             if ($exitCode -ne 0) { exit $exitCode }
