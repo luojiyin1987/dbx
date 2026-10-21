@@ -17,6 +17,7 @@ jobs:
       CARGO_INCREMENTAL: "0"
       CARGO_PROFILE_RELEASE_LTO: "off"
       CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "8"
+      CARGO_TERM_COLOR: never
       RUSTFLAGS: -C debuginfo=line-tables-only -C target-feature=+crt-static
       RUSTC_WRAPPER: ""
     steps:
@@ -63,6 +64,7 @@ jobs:
           $variants = @(
             @{ Name = 'warmup-8'; Units = 8 },
             @{ Name = 'candidate-4'; Units = 4 },
+            @{ Name = 'candidate-4-repeat'; Units = 4 },
             @{ Name = 'control-8'; Units = 8 }
           )
           $results = @()
@@ -70,14 +72,22 @@ jobs:
             cargo clean --package dbx --release --target x86_64-win7-windows-msvc
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+            $logFile = Join-Path $reportDir "$($variant.Name).log"
             $timer = [System.Diagnostics.Stopwatch]::StartNew()
             cargo -Z host-config -Z target-applies-to-host -Z build-std=std,panic_abort `
               --config .github/fixtures/win7-host-repro-config.toml `
               rustc --locked --package dbx --lib --release --features custom-protocol `
-              --target x86_64-win7-windows-msvc -- "-Ccodegen-units=$($variant.Units)"
+              --target x86_64-win7-windows-msvc -- "-Ccodegen-units=$($variant.Units)" `
+              2>&1 | Tee-Object -FilePath $logFile
             $exitCode = $LASTEXITCODE
             $timer.Stop()
             if ($exitCode -ne 0) { exit $exitCode }
+            $compiled = @(Select-String -LiteralPath $logFile -Pattern '^\s*Compiling\s+(\S+)' |
+              ForEach-Object { $_.Matches[0].Groups[1].Value })
+            if ($variant.Name -in @('control-8', 'candidate-4-repeat') -and
+                ($compiled.Count -ne 1 -or $compiled[0] -ne 'dbx')) {
+              throw "The $($variant.Name) pass rebuilt packages outside dbx: $($compiled -join ', ')."
+            }
 
             $rlib = Get-ChildItem -LiteralPath target/x86_64-win7-windows-msvc/release/deps `
               -Filter 'libdbx_lib-*.rlib' -File |
@@ -88,6 +98,7 @@ jobs:
               codegen_units = $variant.Units
               seconds = [math]::Round($timer.Elapsed.TotalSeconds, 2)
               rlib_bytes = $rlib.Length
+              compiled_packages = $compiled.Count
             }
             $results | ConvertTo-Json -Depth 3 |
               Set-Content -LiteralPath (Join-Path $reportDir 'results.json')
@@ -96,13 +107,13 @@ jobs:
           @(
             '### Win7 dbx_lib codegen units',
             '',
-            '| Pass | Units | Command seconds | rlib bytes |',
-            '| --- | ---: | ---: | ---: |'
+            '| Pass | Units | Command seconds | rlib bytes | Compiled packages |',
+            '| --- | ---: | ---: | ---: | ---: |'
           ) + @($results | ForEach-Object {
-            "| $($_.name) | $($_.codegen_units) | $($_.seconds) | $($_.rlib_bytes) |"
+            "| $($_.name) | $($_.codegen_units) | $($_.seconds) | $($_.rlib_bytes) | $($_.compiled_packages) |"
           }) + @(
             '',
-            'The first pass builds dependencies. Compare candidate-4 with control-8.'
+            'The first pass builds dependencies. Compare candidate-4-repeat with control-8.'
           ) | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
 
       - name: Upload codegen units report
