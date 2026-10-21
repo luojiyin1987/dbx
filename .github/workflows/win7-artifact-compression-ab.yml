@@ -1,0 +1,270 @@
+name: Win7 artifact compression A/B
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/win7-artifact-compression-ab.yml
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  measure:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    outputs:
+      aws_lc_bytes: ${{ steps.source.outputs.aws_lc_bytes }}
+      openssl_bytes: ${{ steps.source.outputs.openssl_bytes }}
+      installer_bytes: ${{ steps.source.outputs.installer_bytes }}
+    steps:
+      - name: Download main AWS-LC source
+        uses: actions/download-artifact@v4
+        with:
+          name: win7-aws-lc-v3-Windows-nightly-2026-07-22-1e6f5fdec3159015013872275c5a634599538dc42c3e38e499a0e564b6ffc151
+          path: ${{ runner.temp }}/artifact-ab/source/aws-lc
+          run-id: 39184384939
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+
+      - name: Download main OpenSSL source
+        uses: actions/download-artifact@v4
+        with:
+          name: win7-openssl-v1-Windows-nightly-2026-07-22-44a1b2d637336a80654bd2346b6fefef3ca4e116962631b3f2393362d3a35de7
+          path: ${{ runner.temp }}/artifact-ab/source/openssl
+          run-id: 39184384939
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+
+      - name: Download main Win7 installer source
+        uses: actions/download-artifact@v4
+        with:
+          name: DBX-win7-fixed-runtime-test
+          path: ${{ runner.temp }}/artifact-ab/source/installer
+          run-id: 39297773137
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+
+      - name: Check source files
+        id: source
+        shell: pwsh
+        run: |
+          foreach ($kind in @('aws-lc', 'openssl', 'installer')) {
+            $root = Join-Path $env:RUNNER_TEMP "artifact-ab/source/$kind"
+            $files = @(Get-ChildItem -LiteralPath $root -File -Recurse)
+            if ($files.Count -eq 0) { throw "Missing $kind source files." }
+            $bytes = ($files | Measure-Object -Property Length -Sum).Sum
+            "${kind}: $($files.Count) files, $bytes bytes" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            $key = $kind.Replace('-', '_')
+            "${key}_bytes=$bytes" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Upload AWS-LC level 0
+        uses: actions/upload-artifact@v6
+        with:
+          name: ab-win7-aws-lc-0
+          path: ${{ runner.temp }}/artifact-ab/source/aws-lc/
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload OpenSSL level 0
+        uses: actions/upload-artifact@v6
+        with:
+          name: ab-win7-openssl-0
+          path: ${{ runner.temp }}/artifact-ab/source/openssl/
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload installer level 0
+        uses: actions/upload-artifact@v6
+        with:
+          name: ab-win7-installer-0
+          path: ${{ runner.temp }}/artifact-ab/source/installer/
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Upload AWS-LC level 1
+        uses: actions/upload-artifact@v6
+        with:
+          name: ab-win7-aws-lc-1
+          path: ${{ runner.temp }}/artifact-ab/source/aws-lc/
+          compression-level: 1
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload OpenSSL level 1
+        uses: actions/upload-artifact@v6
+        with:
+          name: ab-win7-openssl-1
+          path: ${{ runner.temp }}/artifact-ab/source/openssl/
+          compression-level: 1
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload installer level 1
+        uses: actions/upload-artifact@v6
+        with:
+          name: ab-win7-installer-1
+          path: ${{ runner.temp }}/artifact-ab/source/installer/
+          compression-level: 1
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Upload AWS-LC level 6
+        uses: actions/upload-artifact@v6
+        with:
+          name: ab-win7-aws-lc-6
+          path: ${{ runner.temp }}/artifact-ab/source/aws-lc/
+          compression-level: 6
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload OpenSSL level 6
+        uses: actions/upload-artifact@v6
+        with:
+          name: ab-win7-openssl-6
+          path: ${{ runner.temp }}/artifact-ab/source/openssl/
+          compression-level: 6
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload installer level 6
+        uses: actions/upload-artifact@v6
+        with:
+          name: ab-win7-installer-6
+          path: ${{ runner.temp }}/artifact-ab/source/installer/
+          compression-level: 6
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Download AWS-LC level 6
+        uses: actions/download-artifact@v4
+        with:
+          name: ab-win7-aws-lc-6
+          path: ${{ runner.temp }}/artifact-ab/received/aws-lc-6
+      - name: Download OpenSSL level 6
+        uses: actions/download-artifact@v4
+        with:
+          name: ab-win7-openssl-6
+          path: ${{ runner.temp }}/artifact-ab/received/openssl-6
+      - name: Download installer level 6
+        uses: actions/download-artifact@v4
+        with:
+          name: ab-win7-installer-6
+          path: ${{ runner.temp }}/artifact-ab/received/installer-6
+
+      - name: Download AWS-LC level 1
+        uses: actions/download-artifact@v4
+        with:
+          name: ab-win7-aws-lc-1
+          path: ${{ runner.temp }}/artifact-ab/received/aws-lc-1
+      - name: Download OpenSSL level 1
+        uses: actions/download-artifact@v4
+        with:
+          name: ab-win7-openssl-1
+          path: ${{ runner.temp }}/artifact-ab/received/openssl-1
+      - name: Download installer level 1
+        uses: actions/download-artifact@v4
+        with:
+          name: ab-win7-installer-1
+          path: ${{ runner.temp }}/artifact-ab/received/installer-1
+
+      - name: Download AWS-LC level 0
+        uses: actions/download-artifact@v4
+        with:
+          name: ab-win7-aws-lc-0
+          path: ${{ runner.temp }}/artifact-ab/received/aws-lc-0
+      - name: Download OpenSSL level 0
+        uses: actions/download-artifact@v4
+        with:
+          name: ab-win7-openssl-0
+          path: ${{ runner.temp }}/artifact-ab/received/openssl-0
+      - name: Download installer level 0
+        uses: actions/download-artifact@v4
+        with:
+          name: ab-win7-installer-0
+          path: ${{ runner.temp }}/artifact-ab/received/installer-0
+
+      - name: Verify downloaded files
+        shell: pwsh
+        run: |
+          function Get-Manifest([string]$root) {
+            $fullRoot = (Resolve-Path -LiteralPath $root).Path
+            $files = @(Get-ChildItem -LiteralPath $fullRoot -File -Recurse)
+            return @($files | ForEach-Object {
+              $relative = $_.FullName.Substring($fullRoot.Length).TrimStart('\', '/').Replace('\', '/')
+              "$relative $($_.Length) $((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
+            } | Sort-Object)
+          }
+          foreach ($kind in @('aws-lc', 'openssl', 'installer')) {
+            $source = Get-Manifest (Join-Path $env:RUNNER_TEMP "artifact-ab/source/$kind")
+            foreach ($level in @(0, 1, 6)) {
+              $received = Get-Manifest (Join-Path $env:RUNNER_TEMP "artifact-ab/received/$kind-$level")
+              if (Compare-Object -ReferenceObject $source -DifferenceObject $received) {
+                throw "$kind level $level differs from the source."
+              }
+              "$kind level $level: $($received.Count) files verified" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            }
+          }
+
+  report:
+    needs: measure
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      AWS_LC_BYTES: ${{ needs.measure.outputs.aws_lc_bytes }}
+      OPENSSL_BYTES: ${{ needs.measure.outputs.openssl_bytes }}
+      INSTALLER_BYTES: ${{ needs.measure.outputs.installer_bytes }}
+    steps:
+      - name: Report transfer times and archive sizes
+        run: |
+          python - <<'PY'
+          import datetime
+          import json
+          import os
+          import urllib.request
+
+          base = f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
+
+          def get(path):
+              request = urllib.request.Request(
+                  base + path,
+                  headers={"Authorization": f"Bearer {os.environ['GH_TOKEN']}", "Accept": "application/vnd.github+json"},
+              )
+              with urllib.request.urlopen(request) as response:
+                  return json.load(response)
+
+          jobs = get("/jobs?per_page=100")["jobs"]
+          steps = {step["name"]: step for job in jobs if job["name"] == "measure" for step in job["steps"]}
+          artifacts = {artifact["name"]: artifact for artifact in get("/artifacts?per_page=100")["artifacts"]}
+
+          def seconds(step):
+              start = datetime.datetime.fromisoformat(step["started_at"].replace("Z", "+00:00"))
+              end = datetime.datetime.fromisoformat(step["completed_at"].replace("Z", "+00:00"))
+              return (end - start).total_seconds()
+
+          lines = [
+              "## Win7 artifact compression A/B",
+              "",
+              "One pass on windows-2022. Upload includes compression and transfer. Download includes transfer and extraction.",
+              "",
+              "| Payload | Level | Input MiB | Archive MiB | Upload s | Download and extract s | Total s |",
+              "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+          ]
+          for kind, label, source in (
+              ("aws-lc", "AWS-LC", "AWS_LC_BYTES"),
+              ("openssl", "OpenSSL", "OPENSSL_BYTES"),
+              ("installer", "installer", "INSTALLER_BYTES"),
+          ):
+              for level in (0, 1, 6):
+                  upload = seconds(steps[f"Upload {label} level {level}"])
+                  download = seconds(steps[f"Download {label} level {level}"])
+                  archive = artifacts[f"ab-win7-{kind}-{level}"]["size_in_bytes"]
+                  input_size = int(os.environ[source])
+                  lines.append(
+                      f"| {label} | {level} | {input_size / 1048576:.2f} | {archive / 1048576:.2f} "
+                      f"| {upload:.0f} | {download:.0f} | {upload + download:.0f} |"
+                  )
+          report = "\n".join(lines) + "\n"
+          print(report)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write(report)
+          PY
