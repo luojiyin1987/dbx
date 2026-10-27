@@ -832,6 +832,8 @@ jobs:
             }
             $reducedLines | Set-Content $sourcePath -Encoding utf8NoBOM
             Measure-Registry "without-query" $keptCommandCount
+            git restore --source=HEAD -- $sourcePath
+            Measure-Registry "full-after-query" $fullCommandCount
           } finally {
             $env:RUSTC_WRAPPER = $savedWrapper
             git restore --source=HEAD -- $sourcePath
@@ -844,6 +846,7 @@ jobs:
             "| --- | ---: | ---: | ---: | ---: | ---: |"
             "| Full | $($results['full'].Commands) | $($results['full'].Definitions) | $($results['full'].TotalEstimate) | $($results['full'].Seconds) | $($results['full'].PeakRustcMb) |"
             "| Without query | $($results['without-query'].Commands) | $($results['without-query'].Definitions) | $($results['without-query'].TotalEstimate) | $($results['without-query'].Seconds) | $($results['without-query'].PeakRustcMb) |"
+            "| Full again | $($results['full-after-query'].Commands) | $($results['full-after-query'].Definitions) | $($results['full-after-query'].TotalEstimate) | $($results['full-after-query'].Seconds) | $($results['full-after-query'].PeakRustcMb) |"
           ) | Add-Content $env:GITHUB_STEP_SUMMARY
 
       - name: Upload dbx library command registry A/B

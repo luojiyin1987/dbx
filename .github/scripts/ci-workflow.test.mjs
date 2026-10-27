@@ -442,6 +442,7 @@ test("Windows compatibility jobs cache Rust compilation without wrapping C or C+
   assert.ok(win7.includes('$env:RUSTC_WRAPPER = ""'));
   assert.ok(win7.includes('Measure-Registry "full" $fullCommandCount'));
   assert.ok(win7.includes('Measure-Registry "without-query" $keptCommandCount'));
+  assert.ok(win7.includes('Measure-Registry "full-after-query" $fullCommandCount'));
   assert.ok(win7.includes("$queryCommandCount++"));
   assert.ok(win7.includes("PeakRustcMb"));
   assert.ok(win7.includes('"-Zdump-mono-stats=$outputDir"'));
