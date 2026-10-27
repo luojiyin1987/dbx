@@ -82,7 +82,8 @@ function concurrencyTimeline(units, wallSeconds) {
     seconds,
     peak,
     serialSeconds,
-    serialTailSeconds: hadParallel ? Math.max(0, wallSeconds - lastParallelEnd) : 0,
+    // The build never reached two parallel units, so the whole wall time is serial.
+    serialTailSeconds: hadParallel ? Math.max(0, wallSeconds - lastParallelEnd) : wallSeconds,
   };
 }
 
@@ -98,32 +99,47 @@ function sectionTotals(units) {
 }
 
 // Longest dependency chain reconstructed from the `unblocked_units` edges.
-// Chain time counts unit durations only; idle gaps are not included.
+// Chain time counts unit durations only; idle gaps are not included. A unit can
+// finish after a dependent unit starts, so the chain follows a topological order
+// instead of the start time. Units left over from a cycle are skipped and
+// reported through `acyclic`.
 export function longestChain(units) {
-  const predecessors = new Map(units.map((unit) => [unit.i, []]));
+  const byId = new Map(units.map((unit) => [unit.i, unit]));
+  const successors = new Map(units.map((unit) => [unit.i, []]));
+  const indegree = new Map(units.map((unit) => [unit.i, 0]));
   for (const unit of units) {
-    for (const id of unit.unblocked_units ?? []) predecessors.get(id)?.push(unit.i);
+    for (const id of unit.unblocked_units ?? []) {
+      if (!successors.has(id)) continue;
+      successors.get(unit.i).push(id);
+      indegree.set(id, indegree.get(id) + 1);
+    }
   }
 
   const best = new Map();
-  const ordered = [...units].sort((left, right) => left.start - right.start);
-  for (const unit of ordered) {
-    let predecessor = null;
-    for (const id of predecessors.get(unit.i) ?? []) {
-      const candidate = best.get(id);
-      if (!candidate) continue;
-      if (!predecessor || candidate.total > predecessor.total) predecessor = candidate;
+  for (const unit of units) best.set(unit.i, { total: unit.duration, path: [unit] });
+
+  const ready = units.filter((unit) => indegree.get(unit.i) === 0).map((unit) => unit.i);
+  let processed = 0;
+  while (ready.length > 0) {
+    ready.sort((left, right) => byId.get(left).start - byId.get(right).start || left - right);
+    const id = ready.shift();
+    processed += 1;
+    for (const nextId of successors.get(id)) {
+      const candidate = {
+        total: best.get(id).total + byId.get(nextId).duration,
+        path: [...best.get(id).path, byId.get(nextId)],
+      };
+      if (candidate.total > best.get(nextId).total) best.set(nextId, candidate);
+      indegree.set(nextId, indegree.get(nextId) - 1);
+      if (indegree.get(nextId) === 0) ready.push(nextId);
     }
-    best.set(unit.i, {
-      total: (predecessor?.total ?? 0) + unit.duration,
-      path: [...(predecessor?.path ?? []), unit],
-    });
   }
 
   let longest = { total: 0, path: [] };
   for (const candidate of best.values()) if (candidate.total > longest.total) longest = candidate;
   return {
     seconds: longest.total,
+    acyclic: processed === units.length,
     units: longest.path.map((unit) => ({
       name: unit.name,
       version: unit.version,
@@ -216,6 +232,10 @@ export function renderMarkdown(summary, { title = "Cargo timings" } = {}) {
     for (const unit of summary.criticalPath.units) {
       lines.push(`- ${unit.name} ${unit.version} (${unit.mode}) — ${minutes(unit.duration)}, start ${unit.start.toFixed(1)} s`);
     }
+  }
+  if (summary.criticalPath.acyclic === false) {
+    lines.push("");
+    lines.push("> Warning: the dependency graph contains a cycle. The reported chain may be incomplete.");
   }
   lines.push("");
   return lines.join("\n");

@@ -50,6 +50,7 @@ test("the summary measures parallel width, the serial tail and the longest chain
   ]);
   assert.deepEqual(summary.criticalPath, {
     seconds: 35,
+    acyclic: true,
     units: [
       { name: "leaf", version: "1.0.0", mode: "todo", duration: 10, start: 0 },
       { name: "middle", version: "1.0.0", mode: "todo", duration: 20, start: 10 },
@@ -69,13 +70,40 @@ test("parallel units are counted per overlap window", () => {
   assert.equal(summary.serialTailSeconds, 0);
 });
 
+test("a build without any parallel unit reports the whole wall time as serial tail", () => {
+  const serial = [{ i: 1, name: "solo", version: "1", mode: "todo", start: 0, duration: 10, unblocked_units: [] }];
+  const summary = summarizeTimingReport(parseTimingReport(reportHtml({ wall: 25, units: serial })));
+  assert.equal(summary.serialTailSeconds, 25);
+  assert.equal(summary.serialSeconds, 25);
+});
+
 test("a unit that is not unblocked by its predecessor still gets a chain", () => {
   const chain = longestChain([
     { i: 1, name: "first", version: "1", mode: "todo", start: 0, duration: 3, unblocked_units: [] },
     { i: 2, name: "second", version: "1", mode: "todo", start: 5, duration: 7, unblocked_units: [] },
   ]);
   assert.equal(chain.seconds, 7);
+  assert.equal(chain.acyclic, true);
   assert.deepEqual(chain.units.map((unit) => unit.name), ["second"]);
+});
+
+test("the chain follows dependency edges even when the start order disagrees", () => {
+  const chain = longestChain([
+    { i: 1, name: "dependent", version: "1", mode: "todo", start: 0, duration: 1, unblocked_units: [] },
+    { i: 2, name: "predecessor", version: "1", mode: "todo", start: 20, duration: 30, unblocked_units: [1] },
+  ]);
+  assert.equal(chain.seconds, 31);
+  assert.equal(chain.acyclic, true);
+  assert.deepEqual(chain.units.map((unit) => unit.name), ["predecessor", "dependent"]);
+});
+
+test("a dependency cycle is reported without hanging", () => {
+  const chain = longestChain([
+    { i: 1, name: "left", version: "1", mode: "todo", start: 0, duration: 4, unblocked_units: [2] },
+    { i: 2, name: "right", version: "1", mode: "todo", start: 0, duration: 9, unblocked_units: [1] },
+  ]);
+  assert.equal(chain.acyclic, false);
+  assert.equal(chain.seconds, 9);
 });
 
 test("the markdown report states wall time, concurrency and the serial tail", () => {
