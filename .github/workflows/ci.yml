@@ -659,10 +659,30 @@ jobs:
         shell: pwsh
         run: |
           $env:TAURI_CONFIG = Get-Content src-tauri/tauri.webview2-win7-fixed.conf.json -Raw
-          cargo -Z host-config -Z target-applies-to-host -Z build-std=std,panic_abort `
-            --config .github/fixtures/win7-host-repro-config.toml `
-            build --locked --package dbx --release --features custom-protocol `
-            --target x86_64-win7-windows-msvc --timings
+          # Observation only: sampling wraps the unchanged cargo command line.
+          ./.github/scripts/measure-build-resources.ps1 `
+            -Label "win7-cargo-build" `
+            -OutputDirectory (Join-Path $env:RUNNER_TEMP "win7-build-resources") `
+            -Invoke {
+              cargo -Z host-config -Z target-applies-to-host -Z build-std=std,panic_abort `
+                --config .github/fixtures/win7-host-repro-config.toml `
+                build --locked --package dbx --release --features custom-protocol `
+                --target x86_64-win7-windows-msvc --timings
+            }
+
+      - name: Summarize Windows 7 Cargo timings
+        if: always()
+        shell: pwsh
+        run: node .github/scripts/cargo-timings-report.mjs target/cargo-timings/ --markdown >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload Windows 7 build resource samples
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: DBX-win7-build-resources
+          path: ${{ runner.temp }}/win7-build-resources/
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Upload Windows 7 Cargo timings
         if: always()
@@ -1104,6 +1124,10 @@ jobs:
           path: target/cargo-timings/
           if-no-files-found: ignore
           retention-days: 3
+
+      - name: Summarize Rust Cargo timings
+        if: always() && !cancelled()
+        run: node .github/scripts/cargo-timings-report.mjs target/cargo-timings/ --markdown >> "$GITHUB_STEP_SUMMARY"
 
       - name: Show sccache stats
         if: always()

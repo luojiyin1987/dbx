@@ -177,6 +177,33 @@ failures when a report exists, but uploads do not delay cancelled runs. Inspect
 these reports alongside sccache statistics: its hit rate excludes unsupported
 crate types and does not measure the time spent compiling and linking test binaries.
 
+## Build resource observation
+
+The Win7 job observes the build that already runs. `measure-build-resources.ps1`
+wraps the same cargo command. It changes no flag, environment variable or cache
+setting. It writes three files to the `DBX-win7-build-resources` artifact:
+
+- `samples.csv`: CPU, processor queue, available and committed memory, paging file
+  usage, and disk read and write throughput every three seconds.
+- `processes.csv`: per-name CPU seconds, peak working set and concurrency for
+  `cargo`, `rustc`, `link`, `sccache`, `cl` and `cc1plus`.
+- `summary.json`: aggregates over the same samples.
+
+`cargo-timings-report.mjs` reads a Cargo HTML timing report. It prints wall time,
+parallel width, the serial tail and the longest dependency chain. The Win7 job and
+the Linux Rust test job write this summary to the step summary.
+
+Read both sources together. Cargo shows which unit runs alone. The sampler shows
+whether the runner is CPU bound, I/O bound or swapping during that unit. A load
+average above 95% on four cores means CPU shortage. Low CPU with high disk
+throughput means an I/O limit. One unit that runs long while the queue is empty
+means a serial compile or link step.
+
+```sh
+node .github/scripts/cargo-timings-report.mjs target/cargo-timings/ --markdown
+node .github/scripts/cargo-timings-report.mjs target/cargo-timings/ --json
+```
+
 ## Validation
 
 Run these from the repository root:

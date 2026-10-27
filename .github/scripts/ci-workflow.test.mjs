@@ -277,6 +277,21 @@ test("Rust build timings remain available after failures without waiting for can
     assert.ok(content.includes("if-no-files-found: ignore"));
   }
   assert.ok(job("agent-rust").includes('--manifest-path "drivers/$DRIVER/Cargo.toml" --locked --no-fail-fast --timings'));
+  assert.ok(job("rust-test").includes("node .github/scripts/cargo-timings-report.mjs target/cargo-timings/ --markdown"));
+});
+
+test("the Win7 build observation wraps the unchanged cargo command", () => {
+  const content = job("windows-win7-bundle");
+  assert.ok(content.includes("./.github/scripts/measure-build-resources.ps1"));
+  assert.ok(content.includes('-Label "win7-cargo-build"'));
+  assert.ok(content.includes('-OutputDirectory (Join-Path $env:RUNNER_TEMP "win7-build-resources")'));
+  assert.ok(content.includes("-Invoke {"));
+  // Observation must not change the compile command, so the contract stays identical.
+  assert.match(content, /cargo -Z host-config -Z target-applies-to-host -Z build-std=std,panic_abort `\n\s+--config \.github\/fixtures\/win7-host-repro-config\.toml `\n\s+build --locked --package dbx --release --features custom-protocol `\n\s+--target x86_64-win7-windows-msvc --timings/);
+  assert.ok(content.includes("node .github/scripts/cargo-timings-report.mjs target/cargo-timings/ --markdown"));
+  assert.match(content, /name: Upload Windows 7 build resource samples\s+if: always\(\)\s+uses: actions\/upload-artifact@v6/);
+  assert.ok(content.includes("name: DBX-win7-build-resources"));
+  assert.ok(content.includes("path: ${{ runner.temp }}/win7-build-resources/"));
 });
 
 test("Linux dependency installs share bounded acquisition before offline installation", () => {
