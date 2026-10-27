@@ -658,11 +658,39 @@ jobs:
       - name: Build DBX for Windows 7
         shell: pwsh
         run: |
+          $sampleDir = Join-Path $env:RUNNER_TEMP 'win7-page-faults'
+          New-Item -ItemType Directory -Force -Path $sampleDir | Out-Null
+          $sampleJob = Start-Job -FilePath .github/scripts/measure-win7-page-faults.ps1 `
+            -ArgumentList (Join-Path $sampleDir 'samples.csv')
           $env:TAURI_CONFIG = Get-Content src-tauri/tauri.webview2-win7-fixed.conf.json -Raw
-          cargo -Z host-config -Z target-applies-to-host -Z build-std=std,panic_abort `
-            --config .github/fixtures/win7-host-repro-config.toml `
-            build --locked --package dbx --release --features custom-protocol `
-            --target x86_64-win7-windows-msvc --timings
+          try {
+            [DateTime]::UtcNow.ToString('o') | Set-Content (Join-Path $sampleDir 'cargo-start-utc.txt')
+            cargo -Z host-config -Z target-applies-to-host -Z build-std=std,panic_abort `
+              --config .github/fixtures/win7-host-repro-config.toml `
+              build --locked --package dbx --release --features custom-protocol `
+              --target x86_64-win7-windows-msvc --timings
+            $buildExitCode = $LASTEXITCODE
+          } finally {
+            [DateTime]::UtcNow.ToString('o') | Set-Content (Join-Path $sampleDir 'cargo-end-utc.txt')
+            $sampleFailed = $sampleJob.State -eq 'Failed'
+            Stop-Job $sampleJob
+            Receive-Job $sampleJob -ErrorAction Continue | Out-Null
+            Remove-Job $sampleJob
+          }
+          if ($buildExitCode -ne 0) { exit $buildExitCode }
+          $samples = Join-Path $sampleDir 'samples.csv'
+          if ($sampleFailed -or -not (Test-Path $samples) -or @(Get-Content $samples).Count -lt 2) {
+            throw 'Win7 page fault sampler produced no data.'
+          }
+
+      - name: Upload Windows 7 page fault samples
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: DBX-win7-page-faults
+          path: ${{ runner.temp }}/win7-page-faults/
+          if-no-files-found: warn
+          retention-days: 3
 
       - name: Upload Windows 7 Cargo timings
         if: always()
