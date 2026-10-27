@@ -187,6 +187,7 @@ setting. It writes three files to the `DBX-win7-build-resources` artifact:
   usage, and disk read and write throughput every three seconds.
 - `processes.csv`: per-name CPU seconds, peak working set and concurrency for
   `cargo`, `rustc`, `link`, `sccache`, `cl` and `cc1plus`.
+- `meta.json`: label, logical core count and interval for the sampled machine.
 - `summary.json`: aggregates over the same samples.
 
 `cargo-timings-report.mjs` reads a Cargo HTML timing report. It prints wall time,
@@ -194,10 +195,24 @@ parallel width, the serial tail and the longest dependency chain. The Win7 job a
 the Linux Rust test job write this summary to the step summary.
 
 Read both sources together. Cargo shows which unit runs alone. The sampler shows
-whether the runner is CPU bound, I/O bound or swapping during that unit. A load
-average above 95% on four cores means CPU shortage. Low CPU with high disk
-throughput means an I/O limit. One unit that runs long while the queue is empty
-means a serial compile or link step.
+what the runner does during that unit. Use the signals together, not one value:
+
+- CPU mean and p95 near 100% with a non-empty processor queue point to CPU shortage.
+- Low CPU with high disk throughput points to an I/O limit.
+- Low CPU, an empty processor queue and one long unit point to a serial dependency
+  in the build graph.
+- Low available memory or paging file usage above zero points to memory pressure.
+
+CPU seconds per process are an estimate from the sample interval. A process that
+starts and ends between two samples under-reports. Compare processes against each
+other. Do not treat the totals as exact.
+
+The sampler is one background PowerShell process. It reads four CIM performance
+classes per sample. Check the sample count and the job duration in the first run
+before you shorten the interval.
+
+To recompute a summary without another build, run the sampler with
+`-SummarizeOnly` and the existing output directory:
 
 ```sh
 node .github/scripts/cargo-timings-report.mjs target/cargo-timings/ --markdown
