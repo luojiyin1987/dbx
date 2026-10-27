@@ -195,6 +195,10 @@ jobs:
         shell: pwsh
         run: ./.github/scripts/bundle-win7-installer.test.ps1
 
+      - name: Build resource summary tests
+        shell: pwsh
+        run: ./.github/scripts/measure-build-resources.test.ps1
+
   packages:
     needs: changes
     if: needs.changes.outputs.packages == 'true'

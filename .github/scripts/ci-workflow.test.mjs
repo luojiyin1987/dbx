@@ -160,6 +160,7 @@ test("Windows 7 bundling uses the tested retry script and still audits the insta
   assert.ok(content.includes("assert-win7-installer-content.ps1"));
   assert.ok(content.indexOf("bundle-win7-installer.ps1") < content.indexOf("assert-win7-installer-content.ps1"));
   assert.ok(job("github-scripts").includes("run: ./.github/scripts/bundle-win7-installer.test.ps1"));
+  assert.ok(job("github-scripts").includes("run: ./.github/scripts/measure-build-resources.test.ps1"));
 });
 
 test("every old Agent stage has an independent owner and Java packaging remains strict", () => {
