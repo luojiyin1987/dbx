@@ -434,6 +434,10 @@ test("Windows compatibility jobs cache Rust compilation without wrapping C or C+
   assert.ok(win7.includes("--timings"));
   assert.ok(win7.includes("name: DBX-win7-cargo-timings"));
   assert.ok(win7.includes("path: target/cargo-timings/"));
+  assert.ok(win7.includes("if: github.head_ref == 'ci/win7-rustc-phase-rss'"));
+  assert.ok(win7.includes("-Z time-passes -Z time-passes-format=json"));
+  assert.ok(win7.includes("name: DBX-win7-rustc-phase-rss"));
+  assert.ok(win7.indexOf("name: Upload Windows 7 test installer") < win7.indexOf("name: Measure dbx library compiler memory phases"));
   assert.ok(win7.includes("name: Measure dbx library command registry expansion"));
   assert.ok(win7.includes("if: vars.WIN7_REGISTRY_AB == 'true'"));
   assert.ok(win7.includes("--package dbx"));

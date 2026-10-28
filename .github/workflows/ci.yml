@@ -714,6 +714,63 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Measure dbx library compiler memory phases
+        if: github.head_ref == 'ci/win7-rustc-phase-rss'
+        shell: pwsh
+        run: |
+          $resultDir = Join-Path $env:RUNNER_TEMP 'win7-rustc-phase-rss'
+          New-Item -ItemType Directory -Force -Path $resultDir | Out-Null
+          $samples = Join-Path $resultDir 'rustc-process.csv'
+          $passes = Join-Path $resultDir 'passes.log'
+          $exitCode = 1
+          'timestampUtc,pid,workingSetBytes,privateBytes' | Set-Content $samples
+          $sampleJob = Start-Job -ScriptBlock {
+            param($path)
+            while ($true) {
+              Get-Process rustc -ErrorAction SilentlyContinue | ForEach-Object {
+                $row = "{0},{1},{2},{3}" -f [DateTime]::UtcNow.ToString('o'),
+                  $_.Id, $_.WorkingSet64, $_.PrivateMemorySize64
+                Add-Content -Path $path -Value $row
+              }
+              Start-Sleep -Seconds 3
+            }
+          } -ArgumentList $samples
+          $env:TAURI_CONFIG = Get-Content src-tauri/tauri.webview2-win7-fixed.conf.json -Raw
+          [DateTime]::UtcNow.ToString('o') | Set-Content (Join-Path $resultDir 'start-utc.txt')
+          try {
+            cargo -Z host-config -Z target-applies-to-host -Z build-std=std,panic_abort `
+              --config .github/fixtures/win7-host-repro-config.toml `
+              rustc --locked --package dbx --release --lib --features custom-protocol `
+              --target x86_64-win7-windows-msvc -- `
+              -Z time-passes -Z time-passes-format=json 2>&1 | ForEach-Object {
+                $line = $_.ToString()
+                if ($line.StartsWith('time: {')) {
+                  $passRow = "{0}`t{1}" -f [DateTime]::UtcNow.ToString('o'), $line
+                  Add-Content -Path $passes -Value $passRow
+                }
+                Write-Output $line
+              }
+            $exitCode = $LASTEXITCODE
+          } finally {
+            [DateTime]::UtcNow.ToString('o') | Set-Content (Join-Path $resultDir 'end-utc.txt')
+            Stop-Job $sampleJob
+            Receive-Job $sampleJob -ErrorAction Continue | Out-Null
+            Remove-Job $sampleJob
+          }
+          if ($exitCode -ne 0) { throw "The dbx library compile failed with exit code $exitCode." }
+          if (!(Test-Path $passes) -or @(Get-Content $samples).Count -lt 2) {
+            throw 'The compiler phase probe produced no measurements.'
+          }
+
+      - name: Upload dbx library compiler memory phases
+        if: always() && github.head_ref == 'ci/win7-rustc-phase-rss'
+        uses: actions/upload-artifact@v6
+        with:
+          name: DBX-win7-rustc-phase-rss
+          path: ${{ runner.temp }}/win7-rustc-phase-rss/
+          if-no-files-found: error
+          retention-days: 3
+
       - name: Measure dbx library command registry expansion
         if: vars.WIN7_REGISTRY_AB == 'true'
         shell: pwsh
