@@ -715,7 +715,7 @@ jobs:
           retention-days: 7
 
       - name: Measure dbx library command registry expansion
-        if: vars.WIN7_REGISTRY_AB == 'true'
+        if: vars.WIN7_REGISTRY_AB == 'true' || github.head_ref == 'ci/win7-half-registry-memory-probe'
         shell: pwsh
         run: |
           $resultRoot = Join-Path $env:RUNNER_TEMP "dbx-lib-command-registry-ab"
@@ -727,23 +727,44 @@ jobs:
           function Measure-Registry([string] $name, [int] $commandCount) {
             $outputDir = Join-Path $resultRoot $name
             New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
+            $workingSetFile = Join-Path $outputDir 'rustc-working-set-bytes.txt'
+            $sampleJob = Start-Job -ScriptBlock {
+              param($path)
+              while ($true) {
+                $peak = (Get-Process rustc -ErrorAction SilentlyContinue |
+                  Measure-Object -Property WorkingSet64 -Maximum).Maximum
+                if ($peak) { Add-Content -Path $path -Value $peak }
+                Start-Sleep -Seconds 3
+              }
+            } -ArgumentList $workingSetFile
             $timer = [System.Diagnostics.Stopwatch]::StartNew()
-            cargo rustc `
-              --locked `
-              --package dbx `
-              --release `
-              --lib `
-              --features custom-protocol `
-              --target x86_64-win7-windows-msvc `
-              -Z build-std=std,panic_abort `
-              -- `
-              "-Zdump-mono-stats=$outputDir" `
-              "-Zdump-mono-stats-format=json"
-            $exitCode = $LASTEXITCODE
-            $timer.Stop()
+            try {
+              cargo rustc `
+                --locked `
+                --package dbx `
+                --release `
+                --lib `
+                --features custom-protocol `
+                --target x86_64-win7-windows-msvc `
+                -Z build-std=std,panic_abort `
+                -- `
+                "-Zdump-mono-stats=$outputDir" `
+                "-Zdump-mono-stats-format=json"
+              $exitCode = $LASTEXITCODE
+            } finally {
+              $timer.Stop()
+              Stop-Job $sampleJob
+              Receive-Job $sampleJob -ErrorAction Continue | Out-Null
+              Remove-Job $sampleJob
+            }
             if ($exitCode -ne 0) {
               throw "$name command registry compile failed with exit code $exitCode."
             }
+            if (!(Test-Path $workingSetFile)) {
+              throw "$name command registry compile has no rustc memory samples."
+            }
+            $peakBytes = (Get-Content $workingSetFile | ForEach-Object { [long]$_ } |
+              Measure-Object -Maximum).Maximum
 
             $monoFile = Get-ChildItem $outputDir -File -Filter "*.mono_items.json" |
               Select-Object -First 1
@@ -755,6 +776,7 @@ jobs:
               Commands = $commandCount
               Definitions = $monoItems.Count
               Seconds = [math]::Round($timer.Elapsed.TotalSeconds, 2)
+              PeakRustcMb = [math]::Round($peakBytes / 1MB)
               TotalEstimate = ($monoItems | Measure-Object -Property total_estimate -Sum).Sum
             }
           }
@@ -807,6 +829,8 @@ jobs:
             }
             $reducedLines | Set-Content $sourcePath -Encoding utf8NoBOM
             Measure-Registry "half" $keptCommandCount
+            git restore --source=HEAD -- $sourcePath
+            Measure-Registry "full-after-half" $fullCommandCount
           } finally {
             $env:RUSTC_WRAPPER = $savedWrapper
             git restore --source=HEAD -- $sourcePath
@@ -815,14 +839,15 @@ jobs:
           @(
             "### dbx library command registry A/B"
             ""
-            "| Registry | Commands | Definitions | Estimated cost | Seconds |"
-            "| --- | ---: | ---: | ---: | ---: |"
-            "| Full | $($results['full'].Commands) | $($results['full'].Definitions) | $($results['full'].TotalEstimate) | $($results['full'].Seconds) |"
-            "| Half | $($results['half'].Commands) | $($results['half'].Definitions) | $($results['half'].TotalEstimate) | $($results['half'].Seconds) |"
+            "| Registry | Commands | Definitions | Estimated cost | Seconds | Peak rustc MB |"
+            "| --- | ---: | ---: | ---: | ---: | ---: |"
+            "| Full | $($results['full'].Commands) | $($results['full'].Definitions) | $($results['full'].TotalEstimate) | $($results['full'].Seconds) | $($results['full'].PeakRustcMb) |"
+            "| Half | $($results['half'].Commands) | $($results['half'].Definitions) | $($results['half'].TotalEstimate) | $($results['half'].Seconds) | $($results['half'].PeakRustcMb) |"
+            "| Full again | $($results['full-after-half'].Commands) | $($results['full-after-half'].Definitions) | $($results['full-after-half'].TotalEstimate) | $($results['full-after-half'].Seconds) | $($results['full-after-half'].PeakRustcMb) |"
           ) | Add-Content $env:GITHUB_STEP_SUMMARY
 
       - name: Upload dbx library command registry A/B
-        if: always() && vars.WIN7_REGISTRY_AB == 'true'
+        if: always() && (vars.WIN7_REGISTRY_AB == 'true' || github.head_ref == 'ci/win7-half-registry-memory-probe')
         uses: actions/upload-artifact@v6
         with:
           name: DBX-win7-dbx-lib-command-registry-ab
